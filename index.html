@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#10241a">
+<title>ไร่สุขใจ 2 · ฟาร์มมือถือ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&family=Mitr:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* same palette and glass panels as ไร่สุขใจ 3D (V.1) */
+:root {
+  --panel: rgba(22, 46, 33, 0.78); --panel-solid: #183424; --line: rgba(255,255,255,0.14);
+  --ink: #f6f3e8; --ink-dim: #c8d6c4; --sun: #ffcf3f; --leaf: #7ccf5a; --water: #5ab8f0; --danger: #e35b4a;
+  --font-display: 'Mitr', 'Kanit', Tahoma, sans-serif; --font-body: 'Kanit', Tahoma, 'Leelawadee UI', sans-serif; --r: 16px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1a12; color: var(--ink); font-family: var(--font-body); user-select: none; -webkit-user-select: none; overscroll-behavior: none; }
+button, input { font-family: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+/* mobile-only layout: the game lives in a phone-width column, whatever the screen */
+#app { position: relative; height: 100%; width: 100%; max-width: 480px; margin: 0 auto; overflow: hidden; background: #10241a; }
+#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.panel { background: var(--panel); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+#hud { position: absolute; left: 10px; right: 10px; top: calc(10px + env(safe-area-inset-top)); padding: 8px 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; z-index: 5; }
+#money { font-family: var(--font-display); font-size: 22px; color: var(--sun); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.meta { font-size: 12.5px; color: var(--ink-dim); text-align: right; }
+.bar { grid-column: 1 / -1; height: 7px; border-radius: 6px; background: rgba(255,255,255,0.14); overflow: hidden; margin-top: 4px; }
+.bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #7ccf5a, #b6e86a); transition: width .3s; }
+#lv { font-size: 13px; color: var(--ink); font-weight: 500; }
+#toast { position: absolute; left: 50%; top: calc(124px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 9; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; width: 92%; }
+.t { background: rgba(16,36,26,0.92); border: 1px solid var(--line); border-radius: 12px; padding: 7px 14px; font-size: 14px; animation: tin .25s ease; max-width: 100%; text-align: center; }
+.t.out { opacity: 0; transition: opacity .4s; }
+@keyframes tin { from { transform: translateY(-8px); opacity: 0; } }
+#seedchip { position: absolute; left: 10px; top: calc(86px + env(safe-area-inset-top)); z-index: 5; padding: 6px 12px; font-size: 13.5px; border: 1px solid var(--line); }
+#harvest { position: absolute; right: 10px; top: calc(86px + env(safe-area-inset-top)); z-index: 5; padding: 7px 14px; font-size: 13.5px; font-weight: 600; background: linear-gradient(180deg, #ffd95c, #f5a623); color: #3a2a05; border: 0; border-radius: 22px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+#nav { position: absolute; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 6; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px; }
+#nav button { background: transparent; border: 0; border-radius: 12px; padding: 6px 0 4px; font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ink-dim); position: relative; }
+#nav button b { font-size: 22px; font-weight: 400; line-height: 1.1; }
+#nav button.on { background: rgba(255,207,63,0.16); color: var(--ink); }
+#nav button i { position: absolute; top: 2px; right: 14px; background: var(--danger); color: #fff; font-style: normal; font-size: 10px; min-width: 16px; height: 16px; border-radius: 8px; line-height: 16px; text-align: center; }
+/* walking controls, as in V.1: joystick on the left, action button on the right */
+#joy { position: absolute; left: 18px; bottom: calc(92px + env(safe-area-inset-bottom)); width: 128px; height: 128px; border-radius: 50%; z-index: 5; touch-action: none; background: rgba(22,46,33,0.45); border: 2px solid var(--line); }
+#joy i { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: rgba(255,255,255,0.35); border: 2px solid rgba(255,255,255,0.5); }
+#actwrap { position: absolute; right: 16px; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+#act { width: 84px; height: 84px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.7); background: linear-gradient(180deg, #ffd95c, #f5a623); font-size: 36px; box-shadow: 0 6px 18px rgba(0,0,0,0.4); color: #3a2a05; }
+#act.idle { background: rgba(22,46,33,0.55); border-color: var(--line); opacity: .75; }
+#actlbl { font-size: 12.5px; padding: 3px 10px; border-radius: 10px; background: rgba(16,36,26,0.85); border: 1px solid var(--line); max-width: 190px; text-align: center; }
+#sheet { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; justify-content: flex-end; background: rgba(5,14,9,0.45); }
+#sheet .box { background: var(--panel-solid); border: 1px solid var(--line); border-bottom: 0; border-radius: 20px 20px 0 0; max-height: 78%; display: flex; flex-direction: column; padding-bottom: calc(84px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,0.4); }
+#sheet h3 { margin: 0; padding: 14px 16px 8px; font-family: var(--font-display); font-weight: 500; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+#sheet h3 button { background: rgba(255,255,255,0.1); border: 0; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; }
+#sbody { overflow-y: auto; padding: 0 12px 12px; -webkit-overflow-scrolling: touch; }
+h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500; }
+.card { display: grid; grid-template-columns: 46px 1fr auto; gap: 10px; align-items: center; background: rgba(255,255,255,0.06); border: 1px solid var(--line); border-radius: 14px; padding: 9px 10px; margin-bottom: 8px; }
+.card .ci { font-size: 30px; text-align: center; }
+.card h4 { margin: 0; font-size: 15px; font-weight: 500; }
+.card p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-dim); line-height: 1.35; }
+.card.lock { opacity: .55; }
+.btn { background: linear-gradient(180deg, #ffd95c, #f5a623); color: #3a2a05; border: 0; border-radius: 12px; padding: 8px 14px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.btn.ghost { background: rgba(255,255,255,0.1); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+.btn.big { padding: 12px 18px; font-size: 16px; }
+.btn[disabled] { opacity: .4; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 10px; }
+.row .btn { flex: 1; }
+.up { color: #8be07a; } .down { color: #ff9a8a; }
+.pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.12); margin-left: 4px; }
+#tip { position: absolute; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center; background: rgba(5,14,9,0.7); padding: 20px; }
+#tip .box { padding: 20px; max-width: 360px; font-size: 14.5px; line-height: 1.6; }
+#tip h2 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 500; color: var(--sun); }
+/* title screen: two save slots */
+#title { position: absolute; inset: 0; z-index: 20; background: radial-gradient(ellipse at 50% 20%, #2d5a3d 0%, #10241a 70%); display: flex; flex-direction: column; align-items: center; padding: calc(40px + env(safe-area-inset-top)) 18px 24px; overflow-y: auto; }
+#title h1 { font-family: var(--font-display); font-weight: 600; font-size: 40px; margin: 8px 0 0; color: var(--sun); text-shadow: 0 3px 0 rgba(0,0,0,0.35); letter-spacing: 1px; }
+#title .sub { color: var(--ink-dim); margin: 4px 0 22px; text-align: center; font-size: 14px; }
+.slot { width: 100%; padding: 14px; margin-bottom: 12px; }
+.slot h4 { margin: 0 0 4px; font-family: var(--font-display); font-weight: 500; font-size: 17px; }
+.slot p { margin: 0 0 10px; font-size: 13px; color: var(--ink-dim); }
+.slot input { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,0.08); font-size: 15px; margin-bottom: 10px; }
+#srv { font-size: 12.5px; color: var(--ink-dim); margin-top: 6px; text-align: center; }
+#srv b.ok { color: #8be07a; } #srv b.off { color: #ffb86a; }
+#rot { display: none; position: fixed; inset: 0; z-index: 99; background: #0b1a12; align-items: center; justify-content: center; text-align: center; padding: 30px; font-size: 18px; }
+@media (orientation: landscape) and (max-height: 500px) { #rot { display: flex; } }
+@media (min-width: 700px) { #app { border-left: 1px solid var(--line); border-right: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="hud" class="panel"><div id="money">0 ฿</div><div class="meta" id="day"></div><div id="lv"></div><div class="meta" id="barn"></div><div class="bar"><i id="xp"></i></div></div>
+  <div id="toast"></div>
+  <button id="seedchip" class="panel" data-a="tab" data-v="farm"></button>
+  <button id="harvest" hidden></button>
+  <div id="joy"><i id="knob"></i></div>
+  <div id="actwrap"><div id="actlbl" hidden></div><button id="act" class="idle">✋</button></div>
+  <div id="nav" class="panel">
+    <button data-a="tab" data-v="farm"><b>🌱</b>แปลงผัก</button>
+    <button data-a="tab" data-v="pen"><b>🐔</b>สัตว์</button>
+    <button data-a="tab" data-v="pond"><b>🐟</b>บ่อปลา</button>
+    <button data-a="tab" data-v="market"><b>🏪</b>ตลาด</button>
+    <button data-a="tab" data-v="up"><b>⭐</b>เมนู</button>
+  </div>
+  <div id="sheet" hidden><div class="box"><h3><span id="stitle"></span><button data-a="close">✕</button></h3><div id="sbody"></div></div></div>
+  <div id="tip" hidden><div class="box panel"><h2>ยินดีต้อนรับสู่ไร่สุขใจ 2</h2>
+    <div>🕹️ ลากจอยสติ๊กซ้ายเพื่อเดิน · ลากนิ้วบนฉากเพื่อหมุนกล้อง<br>🌱 เดินไปที่แปลงแล้วกดปุ่มกลมขวาเพื่อปลูก / รดน้ำ / เก็บเกี่ยว<br>🐔 เดินใกล้คอกเพื่อเก็บไข่ นม ขนแกะ · 🐟 เดินไปริมบ่อเพื่อจับปลา<br>🏪 เดินไปที่ร้านตลาดเพื่อขาย แล้วเอาเงินไปขยายฟาร์มที่แท็บ ⭐<br><br>เกมเดินต่อแม้ปิดหน้าจอ ผักสัตว์และปลายังโตตามเวลาจริง</div>
+    <div class="row" style="margin-top:14px"><button class="btn" data-a="tipok">เริ่มทำฟาร์ม!</button></div></div></div>
+  <div id="title">
+    <h1>ไร่สุขใจ 2</h1><div class="sub">ปลูกผัก เลี้ยงสัตว์ เลี้ยงปลา แล้วขายให้ได้เงิน</div>
+    <div id="slots" style="width:100%"></div>
+    <div id="srv">กำลังเชื่อมต่อเซิร์ฟเวอร์…</div>
+    <div class="row" style="width:100%;margin-top:14px"><button class="btn ghost" data-a="code">🔑 รหัสผู้เล่น / ย้ายเครื่อง</button></div>
+  </div>
+</div>
+<div id="rot">📱 กรุณาหมุนมือถือเป็นแนวตั้ง<br>เกมนี้เล่นได้เฉพาะแนวตั้งบนมือถือ</div>
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
