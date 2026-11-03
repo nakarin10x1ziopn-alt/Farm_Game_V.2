@@ -5,31 +5,34 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 // ---------------- data ----------------
-const FEED_PRICE = 10;
-// buying costs `seed` / `price`; the market pays about 7 % more than that, so a trade earns roughly 5-10 %
-const M = c => Math.round(c * 1.07 * 10) / 10;
+// every price you PAY is 20 % lower than before (seeds, animals, fish, feed, upgrades, decorations); the market pays 3x what the same thing costs to buy
+const SELL_X = 3;
+const FEED_PRICE = 8;
+const M = c => Math.round(c * SELL_X * 10) / 10;
+// xp is still earned as before the price change (sale prices are now 3x the cost, so xp is scaled back by this)
+const XPF = 1.07 / (SELL_X * 0.8);
 const CROPS = {
-  carrot: { n: 'แครอท', i: '🥕', seed: 10, sec: 30, sell: M(10), lv: 1, col: 0xf08a24 },
-  cabbage: { n: 'กะหล่ำปลี', i: '🥬', seed: 20, sec: 50, sell: M(20), lv: 1, col: 0x8fd16a },
-  tomato: { n: 'มะเขือเทศ', i: '🍅', seed: 35, sec: 80, sell: M(35), lv: 2, col: 0xe0443a },
-  corn: { n: 'ข้าวโพด', i: '🌽', seed: 50, sec: 120, sell: M(50), lv: 3, col: 0xf2c12e },
-  strawberry: { n: 'สตรอว์เบอร์รี', i: '🍓', seed: 80, sec: 180, sell: M(80), lv: 5, col: 0xe8466a },
-  pumpkin: { n: 'ฟักทอง', i: '🎃', seed: 120, sec: 240, sell: M(120), lv: 7, col: 0xe8761e },
-  watermelon: { n: 'แตงโม', i: '🍉', seed: 180, sec: 300, sell: M(180), lv: 9, col: 0x3f9a4a },
+  carrot: { n: 'แครอท', i: '🥕', seed: 8, sec: 30, sell: M(8), lv: 1, col: 0xf08a24 },
+  cabbage: { n: 'กะหล่ำปลี', i: '🥬', seed: 16, sec: 50, sell: M(16), lv: 1, col: 0x8fd16a },
+  tomato: { n: 'มะเขือเทศ', i: '🍅', seed: 28, sec: 80, sell: M(28), lv: 2, col: 0xe0443a },
+  corn: { n: 'ข้าวโพด', i: '🌽', seed: 40, sec: 120, sell: M(40), lv: 3, col: 0xf2c12e },
+  strawberry: { n: 'สตรอว์เบอร์รี', i: '🍓', seed: 64, sec: 180, sell: M(64), lv: 5, col: 0xe8466a },
+  pumpkin: { n: 'ฟักทอง', i: '🎃', seed: 96, sec: 240, sell: M(96), lv: 7, col: 0xe8761e },
+  watermelon: { n: 'แตงโม', i: '🍉', seed: 144, sec: 300, sell: M(144), lv: 9, col: 0x3f9a4a },
 };
-// an animal eats `bags` feed bags per round and gives one product worth ~7 % more than that feed
+// an animal eats `bags` feed bags per round and gives one product worth 3x that feed
 const ANIMALS = {
-  chicken: { n: 'ไก่', i: '🐔', price: 60, prod: 'egg', sec: 60, bags: 1, lv: 1 },
-  duck: { n: 'เป็ด', i: '🦆', price: 90, prod: 'duckegg', sec: 70, bags: 1, lv: 2 },
-  sheep: { n: 'แกะ', i: '🐑', price: 150, prod: 'wool', sec: 140, bags: 2, lv: 4 },
-  pig: { n: 'หมู', i: '🐖', price: 220, prod: 'pork', sec: 190, bags: 3, lv: 6 },
-  cow: { n: 'วัว', i: '🐄', price: 330, prod: 'milk', sec: 170, bags: 3, lv: 8 },
+  chicken: { n: 'ไก่', i: '🐔', price: 48, prod: 'egg', sec: 60, bags: 1, lv: 1 },
+  duck: { n: 'เป็ด', i: '🦆', price: 72, prod: 'duckegg', sec: 70, bags: 1, lv: 2 },
+  sheep: { n: 'แกะ', i: '🐑', price: 120, prod: 'wool', sec: 140, bags: 2, lv: 4 },
+  pig: { n: 'หมู', i: '🐖', price: 176, prod: 'pork', sec: 190, bags: 3, lv: 6 },
+  cow: { n: 'วัว', i: '🐄', price: 264, prod: 'milk', sec: 170, bags: 3, lv: 8 },
 };
 const FISH = {
-  tilapia: { n: 'ปลานิล', i: '🐟', price: 20, sec: 100, sell: M(20), lv: 1 },
-  carp: { n: 'ปลาคาร์ป', i: '🐠', price: 40, sec: 160, sell: M(40), lv: 3 },
-  catfish: { n: 'ปลาดุก', i: '🐡', price: 70, sec: 220, sell: M(70), lv: 5 },
-  shrimp: { n: 'กุ้งก้ามกราม', i: '🦐', price: 110, sec: 320, sell: M(110), lv: 8 },
+  tilapia: { n: 'ปลานิล', i: '🐟', price: 16, sec: 100, sell: M(16), lv: 1 },
+  carp: { n: 'ปลาคาร์ป', i: '🐠', price: 32, sec: 160, sell: M(32), lv: 3 },
+  catfish: { n: 'ปลาดุก', i: '🐡', price: 56, sec: 220, sell: M(56), lv: 5 },
+  shrimp: { n: 'กุ้งก้ามกราม', i: '🦐', price: 88, sec: 320, sell: M(88), lv: 8 },
 };
 // every sellable thing: n name, i icon, base price
 const ITEMS = {};
@@ -49,8 +52,8 @@ const PROC = { soup: ['🥫', 'ซุปมะเขือเทศ'], jam: ['�
 for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], base: Math.round(Object.keys(r.in).reduce((t, k) => t + ITEMS[k].base * r.in[k], 0) * 1.08 * 10) / 10 };
 const PLOTS = [6, 8, 12, 16], PENS = [3, 5, 7, 9, 12], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
 const DECOS = [
-  { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 200 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 400 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 1200 },
-  { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 3000 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 6000 },
+  { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 160 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 320 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 960 },
+  { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 2400 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 4800 },
 ];
 const DAY = 300; // seconds of play per farm day
 
@@ -145,23 +148,23 @@ function plant(i) {
 }
 function harvestPlot(i) {
   const p = S.plots[i]; if (!cropReady(p)) return false;
-  if (!addItem(p.c, 1)) return false; gainXp(Math.max(2, Math.round(CROPS[p.c].sell / 4))); p.c = null; p.p = 0; p.w = 0; sfx(700); return true;
+  if (!addItem(p.c, 1)) return false; gainXp(Math.max(2, Math.round(CROPS[p.c].sell * XPF / 4))); p.c = null; p.p = 0; p.w = 0; sfx(700); return true;
 }
-function collectAnimal(i) { const a = S.pen[i]; if (a.st !== 'ready') return false; const pr = ANIMALS[a.a].prod; if (!addItem(pr, 1)) return false; gainXp(Math.max(2, Math.round(ITEMS[pr].base / 6))); a.st = 'idle'; a.t = 0; sfx(640); return true; }
-function harvestFish(i) { const f = S.pond[i]; if (!fishReady(f)) return false; if (!addItem(f.f, 1)) return false; gainXp(Math.max(2, Math.round(FISH[f.f].sell / 4))); S.pond.splice(i, 1); sfx(600); return true; }
-function sell(id, n) { n = Math.min(n, S.inv[id] || 0); if (n <= 0) return 0; const g = Math.round(price(id) * n); S.inv[id] -= n; if (!S.inv[id]) delete S.inv[id]; S.money += g; S.stats.earned += g; gainXp(Math.ceil(g / 40)); sfx(880); return g; }
+function collectAnimal(i) { const a = S.pen[i]; if (a.st !== 'ready') return false; const pr = ANIMALS[a.a].prod; if (!addItem(pr, 1)) return false; gainXp(Math.max(2, Math.round(ITEMS[pr].base * XPF / 6))); a.st = 'idle'; a.t = 0; sfx(640); return true; }
+function harvestFish(i) { const f = S.pond[i]; if (!fishReady(f)) return false; if (!addItem(f.f, 1)) return false; gainXp(Math.max(2, Math.round(FISH[f.f].sell * XPF / 4))); S.pond.splice(i, 1); sfx(600); return true; }
+function sell(id, n) { n = Math.min(n, S.inv[id] || 0); if (n <= 0) return 0; const g = Math.round(price(id) * n); S.inv[id] -= n; if (!S.inv[id]) delete S.inv[id]; S.money += g; S.stats.earned += g; gainXp(Math.ceil(g * XPF / 40)); sfx(880); return g; }
 function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext || window.webkitAudioContext)()), o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.type = 'sine'; g.gain.value = 0.05; o.connect(g); g.connect(A.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001, A.currentTime + 0.14); o.stop(A.currentTime + 0.15); } catch (e) { } }
 
 // upgrades: the 10 things money is for (1-4 are the core buys: seeds, animals, fish, feed)
 const UPS = [
-  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 3, cost: [300, 900, 2200], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
-  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [400, 1200, 3000, 7000], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
-  { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [350, 1000, 2600, 6000], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
-  { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [200, 600, 1600, 4000], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
-  { k: 'sprinkler', n: 'ระบบสปริงเกอร์อัตโนมัติ', i: '💦', max: 1, cost: [1200], desc: () => 'รดน้ำทุกแปลงให้เอง ผักโตเร็วขึ้น 1.5 เท่า' },
-  { k: 'feeder', n: 'เครื่องให้อาหารอัตโนมัติ', i: '⚙️', max: 1, cost: [1500], desc: () => 'อาหารสัตว์หมดแล้วซื้อเติมให้เอง ไม่ต้องกลับมาเช็ค' },
-  { k: 'work', n: 'โรงงานแปรรูป', i: '🏭', max: 1, cost: [1500], lv: 4, desc: () => 'ทำซุป แยม ชีส พาย ขายได้มากกว่าวัตถุดิบ ~8%' },
-  { k: 'truck', n: 'รถกระบะส่งของ', i: '🚚', max: 2, cost: [3500, 9000], lv: 6, desc: l => `ราคาขายทุกอย่าง +${l ? 8 : 4}%` },
+  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 3, cost: [240, 720, 1760], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
+  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [320, 960, 2400, 5600], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
+  { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [280, 800, 2080, 4800], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
+  { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [160, 480, 1280, 3200], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
+  { k: 'sprinkler', n: 'ระบบสปริงเกอร์อัตโนมัติ', i: '💦', max: 1, cost: [960], desc: () => 'รดน้ำทุกแปลงให้เอง ผักโตเร็วขึ้น 1.5 เท่า' },
+  { k: 'feeder', n: 'เครื่องให้อาหารอัตโนมัติ', i: '⚙️', max: 1, cost: [1200], desc: () => 'อาหารสัตว์หมดแล้วซื้อเติมให้เอง ไม่ต้องกลับมาเช็ค' },
+  { k: 'work', n: 'โรงงานแปรรูป', i: '🏭', max: 1, cost: [1200], lv: 4, desc: () => 'ทำซุป แยม ชีส พาย ขายได้มากกว่าวัตถุดิบ ~8%' },
+  { k: 'truck', n: 'รถกระบะส่งของ', i: '🚚', max: 2, cost: [2800, 7200], lv: 6, desc: l => `ราคาขายทุกอย่าง +${l ? 8 : 4}%` },
 ];
 function buyUp(k) {
   const u = UPS.find(x => x.k === k), l = S.u[k]; if (l >= u.max) return; if (u.lv && S.lvl < u.lv) { toast(`ต้องเลเวล ${u.lv}`); return; }
@@ -287,8 +290,8 @@ const mats = {}, mat = (c, o) => { const k = c + JSON.stringify(o || {}); return
 function canvasTex(w, h, draw, rep) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.wrapS = t.wrapT = THREE.RepeatWrapping; if (rep) t.repeat.set(rep, rep); t.anisotropy = 4; return t; }
 const TEX = {};
 const grassTex = () => TEX.grass || (TEX.grass = canvasTex(256, 256, (g, w, h) => {
-  g.fillStyle = '#5c9540'; g.fillRect(0, 0, w, h);
-  const cols = ['#6aa84a', '#4f8a37', '#79b552', '#477f31', '#86bd5a'];
+  g.fillStyle = '#3f7d26'; g.fillRect(0, 0, w, h);
+  const cols = ['#4e9a32', '#3a7524', '#5cab3a', '#336b20', '#6cbf44'];
   for (let i = 0; i < 700; i++) { g.fillStyle = cols[i % cols.length]; g.globalAlpha = 0.22 + Math.random() * 0.25; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 3 + Math.random() * 9, 0, 7); g.fill(); }
   g.globalAlpha = 0.5; for (let i = 0; i < 900; i++) { g.strokeStyle = cols[(i * 3) % cols.length]; g.lineWidth = 1; const x = Math.random() * w, y = Math.random() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.random() * 3 - 1.5, y - 3 - Math.random() * 5); g.stroke(); }
 }, 26));
@@ -415,7 +418,7 @@ function applyLight() {
   const key = h.toFixed(2); if (key === LT.key) return; LT.key = key;
   skyU.top.value.copy(LT.top); skyU.hor.value.copy(LT.hor);
   scene.fog.color.copy(LT.hor).convertSRGBToLinear();
-  sunL.color.copy(LT.sun).convertSRGBToLinear(); sunL.intensity = a[4] + (b[4] - a[4]) * k; hemiL.intensity = a[5] + (b[5] - a[5]) * k;
+  sunL.color.copy(LT.sun).convertSRGBToLinear(); sunL.intensity = (a[4] + (b[4] - a[4]) * k) * 1.18; hemiL.intensity = (a[5] + (b[5] - a[5]) * k) * 0.62;   // V.1 look: strong sun, softer sky light = deeper, more contrasty colour
   hemiL.color.copy(LT.top).lerp(LT.hor, 0.5).convertSRGBToLinear(); hemiL.groundColor.setHex(0x4d6a35).convertSRGBToLinear();
   const el = (a[6] + (b[6] - a[6]) * k) * Math.PI / 180, az = (h - 6) / 14 * Math.PI;     // the sun rises in the east, sets in the west
   sunL.position.set(-Math.cos(az) * 26, Math.max(6, Math.sin(el) * 30), 12 + Math.sin(az) * 4);
@@ -424,7 +427,7 @@ let sunL, hemiL, skyU;
 function resize() { const w = $('app').clientWidth, h = $('app').clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 function init3d() {
   const cv = $('c'); renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
-  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.82;   // lower than before: 1.2 washed the colours out (V.1 renders at 1.0 with a stronger sun)
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xbfdcf0, 40, 105);
   camera = new THREE.PerspectiveCamera(55, 0.5, 0.5, 260);
