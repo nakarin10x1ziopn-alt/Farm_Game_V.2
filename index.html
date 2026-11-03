@@ -83,6 +83,39 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
 #rot { display: none; position: fixed; inset: 0; z-index: 99; background: #0b1a12; align-items: center; justify-content: center; text-align: center; padding: 30px; font-size: 18px; }
 @media (orientation: landscape) and (max-height: 500px) { #rot { display: flex; } }
 @media (min-width: 700px) { #app { border-left: 1px solid var(--line); border-right: 1px solid var(--line); } }
+/* placing a vegetable bed */
+#plcbar { position: absolute; left: 10px; right: 10px; bottom: calc(232px + env(safe-area-inset-bottom)); z-index: 7; padding: 10px 12px; }
+#plctxt { font-size: 13.5px; margin-bottom: 6px; line-height: 1.4; }
+#plcbar .row { margin: 0; }
+/* iPad and other tablets: the phone column opens up to the whole screen (phones keep the layout above) */
+@media (min-width: 768px) and (min-height: 600px) {
+  #app { max-width: none; border: 0; }
+  #hud { right: auto; left: 18px; width: min(440px, 46vw); top: calc(14px + env(safe-area-inset-top)); padding: 10px 14px; }
+  #money { font-size: 26px; } .meta, #lv { font-size: 14px; }
+  #seedchip { left: 18px; top: calc(104px + env(safe-area-inset-top)); font-size: 15px; padding: 8px 14px; }
+  #harvest { right: 18px; top: calc(14px + env(safe-area-inset-top)); font-size: 15px; padding: 9px 18px; }
+  #toast { top: calc(14px + env(safe-area-inset-top)); width: min(560px, 60%); font-size: 15px; }
+  #nav { left: 50%; right: auto; transform: translateX(-50%); width: min(660px, calc(100% - 24px)); bottom: calc(14px + env(safe-area-inset-bottom)); }
+  #nav button { font-size: 13.5px; padding: 9px 0 6px; } #nav button b { font-size: 26px; }
+  #joy { width: 176px; height: 176px; left: 36px; bottom: calc(110px + env(safe-area-inset-bottom)); } #joy i { width: 78px; height: 78px; margin: -39px 0 0 -39px; }
+  #actwrap { right: 36px; bottom: calc(110px + env(safe-area-inset-bottom)); }
+  #act { width: 112px; height: 112px; font-size: 48px; } #actlbl { font-size: 14.5px; max-width: 260px; }
+  #plcbar { left: 50%; right: auto; transform: translateX(-50%); width: min(560px, 90%); bottom: calc(112px + env(safe-area-inset-bottom)); }
+  #sheet { align-items: center; }
+  #sheet .box { width: min(740px, 94%); max-height: 78%; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  #sheet h3 { font-size: 20px; padding: 16px 20px 10px; } #sbody { padding: 0 18px 16px; }
+  .card { gap: 14px; padding: 11px 14px; } .card .ci { font-size: 34px; } .card h4 { font-size: 16.5px; } .card p { font-size: 14px; }
+  .btn { font-size: 15.5px; padding: 10px 16px; }
+  #title { padding-top: calc(60px + env(safe-area-inset-top)); } #title > * { max-width: 600px; } #title h1 { font-size: 52px; }
+  #tip .box { max-width: 520px; font-size: 16px; }
+}
+/* iPad (or any wide tablet) held sideways: the sheet becomes a side panel so the farm stays in view */
+@media (min-width: 900px) and (min-height: 600px) and (min-aspect-ratio: 5/4) {
+  #sheet { flex-direction: row; justify-content: flex-end; align-items: stretch; background: rgba(5,14,9,0.25); }
+  #sheet .box { width: min(560px, 44vw); max-height: none; height: 100%; border-radius: 22px 0 0 22px; border-bottom: 1px solid var(--line); padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  #nav { left: 24px; transform: none; width: min(560px, calc(100% - 640px)); }
+  #hud { width: min(400px, 30vw); }
+}
 </style>
 </head>
 <body>
@@ -112,9 +145,9 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
     <div class="row" style="width:100%;margin-top:14px"><button class="btn ghost" data-a="code">🔑 รหัสผู้เล่น / ย้ายเครื่อง</button></div>
   </div>
 </div>
-<div id="rot">📱 กรุณาหมุนมือถือเป็นแนวตั้ง<br>เกมนี้เล่นได้เฉพาะแนวตั้งบนมือถือ</div>
-<script src="config.js?v=21"></script>
+<div id="rot">📱 กรุณาหมุนมือถือเป็นแนวตั้ง<br>เกมนี้เล่นบนมือถือแนวตั้ง (iPad เล่นได้ทั้งแนวตั้งและแนวนอน)</div>
+<script src="config.js?v=22"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="game.js?v=21"></script>
+<script src="game.js?v=22"></script>
 </body>
 </html>

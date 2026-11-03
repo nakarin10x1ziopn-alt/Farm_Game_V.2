@@ -65,6 +65,11 @@ const RECIPES = [
 const PROC = { soup: ['🥫', 'ซุปมะเขือเทศ'], jam: ['🍯', 'แยมสตรอว์เบอร์รี'], popcorn: ['🍿', 'ป๊อปคอร์น'], pie: ['🥧', 'พายฟักทอง'], cheese: ['🧀', 'ชีส'], cake: ['🍰', 'เค้กไข่'], fishball: ['🍢', 'ลูกชิ้นปลา'] };
 for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], base: Math.round(Object.keys(r.in).reduce((t, k) => t + ITEMS[k].base * r.in[k], 0) * 1.08 * 10) / 10 };
 const PLOTS = [8, 10, 12, 14, 16], PENS = [3, 5, 7, 9, 12], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
+// vegetable beds are bought one at a time now (up to 40), each dearer than the last but never steep, and each can be placed anywhere
+const PLOT_MAX = 40, PLOT_START = 8;
+const plotPrice = n => Math.round(20 + 2.5 * (n - PLOT_START));   // the next bed when you own n: 20 ฿ for the 9th ... 97 ฿ for the 40th
+// the farm is bigger than before: the old farm in the middle, a new field area to the south
+const BOUND = { x0: -27, x1: 27, z0: -13.5, z1: 40 };
 const DECOS = [
   { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 53 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 107 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 320 },
   { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 800 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 1600 },
@@ -86,7 +91,7 @@ const API = (window.FARM2_API || '').replace(/\/$/, '');
 let S = null, slot = 0, online = false;
 let DEV = (() => { try { let d = localStorage.getItem('raisukjai2-dev'); if (!d) { d = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('raisukjai2-dev', d); } return d; } catch (e) { return 'p' + Math.random().toString(36).slice(2, 12); } })();
 const fresh = name => ({ v: 1, name: name || 'ชาวไร่', money: 300, xp: 0, lvl: 1, t: 0, last: Date.now(), tip: 0, sel: 'carrot', px: 0, pz: 10.5, plots: Array.from({ length: PLOTS[0] }, () => ({ c: null, p: 0, w: 0, f: 0 })),
-  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 2, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, dayN: 1, dayT: 0, tm: 'normal', en: 100, home: {}, deco: {}, job: null, stats: { earned: 0 } });
+  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 3, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, dayN: 1, dayT: 0, tm: 'normal', en: 100, home: {}, deco: {}, job: null, stats: { earned: 0 } });
 // A save lives in the browser twice (localStorage + IndexedDB) so one being wiped does not lose the farm. The key no longer depends on the
 // player code; the old key (with the code) is still read so earlier saves keep working. The server copy uses the player code.
 const LKEY = n => `raisukjai2-slot${n}`, LKEY_OLD = n => `raisukjai2-${DEV}-s${n}`, sid = n => `${DEV}_${n}`;
@@ -139,14 +144,26 @@ const SUPPLY = {   // things that are not seeds: base price per unit, what each 
 };
 const bulkF = n => (n >= 20 ? 0.9 : n >= 5 ? 0.95 : 1);
 const dealOf = d => {   // three deals a farm day: two seeds and one supply, the same for everyone on that day
-  const h = hash('deal' + d), ids = Object.keys(CROPS), a = ids[h % ids.length]; let b = ids[(h >> 7) % ids.length]; if (b === a) b = ids[(ids.indexOf(a) + 7) % ids.length];
-  return [{ t: 'seed', id: a, off: 0.25 }, { t: 'seed', id: b, off: 0.15 }, { t: ['feed', 'feed2', 'fert'][(h >> 13) % 3], id: ['feed', 'feed2', 'fert'][(h >> 13) % 3], off: 0.2 }];
+  const h = hash('deal' + d), ids = Object.keys(CROPS), a = ids[h % ids.length]; let b = ids[(h >>> 7) % ids.length]; if (b === a) b = ids[(ids.indexOf(a) + 7) % ids.length];
+  return [{ t: 'seed', id: a, off: 0.25 }, { t: 'seed', id: b, off: 0.15 }, { t: ['feed', 'feed2', 'fert'][(h >>> 13) % 3], id: ['feed', 'feed2', 'fert'][(h >>> 13) % 3], off: 0.2 }];
 };
 const dealFor = (t, id) => (dealOf(day()).find(x => x.t === t && x.id === id) || { off: 0 }).off;
 const seedUnit = id => Math.max(1, Math.round(CROPS[id].seed * (1 - dealFor('seed', id))));
 const supplyUnit = k => Math.max(1, Math.round(SUPPLY[k].price * (1 - dealFor(k, k))));
-const seedCost = (id, n) => Math.max(1, Math.round(seedUnit(id) * n * bulkF(n)));
-const supplyCost = (k, n) => Math.max(1, Math.round(supplyUnit(k) * n * bulkF(n)));
+// ---- promotions: every buyable thing has a timed offer counted in farm days; when it ends the normal price is back ----
+const promoWin = (period, len, off, d) => { const r = (((d - 1 + off) % period) + period) % period; if (r < len) return { on: true, from: d - r, to: d - r + len - 1 }; const from = d + (period - r); return { on: false, from, to: from + len - 1 }; };
+const PLOT_PROMO = { cycle: 10, len: 4, packs: [[3, 0.2], [5, 0.25]] };   // buy 3 beds: 20 % off the pack, buy 5: 25 % off, in days 1-4 of every 10
+const plotWin = d => promoWin(PLOT_PROMO.cycle, PLOT_PROMO.len, 0, d);
+const PROMO_BASE = (kind, id) => kind === 'seed' ? CROPS[id].seed : kind === 'animal' ? ANIMALS[id].price : kind === 'fish' ? FISH[id].price : SUPPLY[id].price;
+const itemPromo = (kind, id) => {   // buy N, get D baht off, in a window that repeats every 7-11 days for 3-4 days; the same for everyone
+  const h = hash('promo:' + kind + ':' + id), N = kind === 'seed' ? [5, 10, 20][h % 3] : kind === 'animal' ? 3 : kind === 'fish' ? 5 : id === 'feed2' ? 10 : [10, 50][h % 2];
+  const pct = 0.12 + ((h >>> 4) % 11) / 100, D = Math.max(1, Math.round(PROMO_BASE(kind, id) * N * pct)), period = 7 + ((h >>> 8) % 5), len = 3 + ((h >>> 12) % 2), off = (h >>> 16) % period;
+  return { N, D, win: promoWin(period, len, off, day()) };
+};
+const promoCut = (kind, id, n) => { const p = itemPromo(kind, id); return p.win.on ? Math.floor(n / p.N) * p.D : 0; };
+const promoTag = (kind, id, unit) => { const p = itemPromo(kind, id), w = p.win; return w.on ? `<br><b class="up">🎁 โปร: ซื้อ ${p.N} ${unit} ลด ${p.D} ฿ · วันที่ ${w.from}–${w.to} (เหลือ ${w.to - day() + 1} วัน)</b>` : `<br><small>🎁 โปรรอบหน้า: ซื้อ ${p.N} ${unit} ลด ${p.D} ฿ · วันที่ ${w.from}–${w.to} (หมดโปรแล้วราคาปกติ)</small>`; };
+const seedCost = (id, n) => Math.max(1, Math.round(seedUnit(id) * n * bulkF(n)) - promoCut('seed', id, n));
+const supplyCost = (k, n) => Math.max(1, Math.round(supplyUnit(k) * n * bulkF(n)) - promoCut(k, k, n));
 function buySeeds(id, n) { const c = CROPS[id]; if (c.lv > S.lvl) { toast(`ต้องเลเวล ${c.lv}`); return; } const have = S.seeds[id] || 0; n = Math.min(n, 99 - have); if (n <= 0) { toast('เมล็ดพันธุ์ชนิดนี้เต็มคลังแล้ว (99)'); return; } if (!spend(seedCost(id, n))) return; S.seeds[id] = have + n; sfx(540); }
 function buySupply(k, n) { if (SUPPLY[k].lv && S.lvl < SUPPLY[k].lv) { toast(`ต้องเลเวล ${SUPPLY[k].lv}`); return; } if (!spend(supplyCost(k, n))) return; S[k] = (S[k] || 0) + n; sfx(500); }
 const canPlant = id => (S.seeds[id] || 0) > 0 || S.money >= seedUnit(id);
@@ -212,7 +229,6 @@ function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext
 
 // upgrades: the 10 things money is for (1-4 are the core buys: seeds, animals, fish, feed)
 const UPS = [
-  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 4, cost: [80, 160, 320, 600], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
   { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [107, 320, 800, 1867], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
   { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [93, 267, 693, 1600], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
   { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [53, 160, 427, 1067], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
@@ -224,7 +240,6 @@ const UPS = [
 function buyUp(k) {
   const u = UPS.find(x => x.k === k), l = S.u[k]; if (l >= u.max) return; if (u.lv && S.lvl < u.lv) { toast(`ต้องเลเวล ${u.lv}`); return; }
   if (!spend(u.cost[l])) return; S.u[k]++; sfx(900); toast(`${u.i} ${u.n} สำเร็จ!`);
-  if (k === 'plot') while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0 });
   build3d();
 }
 function buyDeco(id) { const d = DECOS.find(x => x.id === id); if (S.deco[id]) return; if (!spend(d.price)) return; S.deco[id] = 1; sfx(900); toast(`${d.i} ${d.n} ตกแต่งฟาร์มแล้ว ชื่อเสียง +0.3%`); build3d(); }
@@ -245,9 +260,78 @@ function doSleep(kind) {
 function deposit(n) { n = Math.min(n, S.money); if (n <= 0) return; S.money -= n; S.bank += n; sfx(500); }
 function withdraw(n) { n = Math.min(n, S.bank); if (n <= 0) return; S.bank -= n; S.money += n; sfx(500); }
 
+// ---------------- vegetable beds: buy up to 40, place them anywhere ----------------
+const DEFPOS = j => ({ x: LAY.plotX[j % 4], z: j < 16 ? LAY.plotZ - Math.floor(j / 4) * LAY.plotDz : 17 + Math.floor((j - 16) / 4) * LAY.plotDz });   // the tidy default rows (the first 16 are where they always were)
+const plotPos = i => { const p = S && S.plots[i]; return p && typeof p.x === 'number' && typeof p.z === 'number' ? { x: p.x, z: p.z } : DEFPOS(i); };
+const overlapPlot = (x, z, ign) => S.plots.some((p, i) => { if (i === ign) return false; const q = plotPos(i); return Math.abs(q.x - x) < 2.15 && Math.abs(q.z - z) < 2.15; });
+function nextSlot() { for (let j = 0; j < PLOT_MAX; j++) { const d = DEFPOS(j); if (!overlapPlot(d.x, d.z, -1) && !plotSpotErr(d.x, d.z, -1)) return d; } return null; }
+function plotPackCost(n) { let sum = 0; for (let k = 0; k < n; k++) sum += plotPrice(S.plots.length + k); const w = plotWin(day()), pk = PLOT_PROMO.packs.find(x => x[0] === n), cut = w.on && pk ? Math.round(sum * pk[1]) : 0; return { sum, cut, pay: sum - cut }; }
+function buyPlots(n, manual) {
+  if (PLC) { toast('วางแปลงที่ซื้อไว้ให้เสร็จก่อน'); return; }
+  if (S.plots.length + n > PLOT_MAX) { toast(`แปลงเต็มแล้ว (${PLOT_MAX} แปลง)`); return; }
+  const c = plotPackCost(n); if (S.money < c.pay) { toast('เงินไม่พอ'); return; }
+  const slots = []; for (let k = 0; k < n; k++) { const d = nextSlot(); if (!d && !manual) { toast('ไม่มีที่ว่างในแถวมาตรฐาน ซื้อทีละแปลงแล้ววางเองได้'); return; } slots.push(d || DEFPOS(S.plots.length)); S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0, x: slots[k].x, z: slots[k].z }); }
+  S.money -= c.pay; sfx(900);
+  if (manual) { const i = S.plots.length - 1; S.plots[i].un = 1; S.plots[i].paid = c.pay; build3d(); closeSheet(); startPlace(i, 'new'); return; }
+  toast(`🌱 ได้แปลงเพิ่ม ${n} แปลง${c.cut ? ' (โปรลด ' + fmt(c.cut) + ' ฿)' : ''} · รวม ${S.plots.length}/${PLOT_MAX}`); build3d();
+}
+// can a bed stand here? (inside the farm, off the roads, clear of buildings, the pen, the pond, trees and other beds)
+function plotSpotErr(x, z, ign) {
+  if (x < BOUND.x0 + 1.4 || x > BOUND.x1 - 1.4 || z < BOUND.z0 + 1.4 || z > BOUND.z1 - 1.4) return 'อยู่นอกพื้นที่ฟาร์ม';
+  if (overlapPlot(x, z, ign)) return 'ชนแปลงอื่น';
+  for (const [dx, dz] of [[0, 0], [1.05, 0], [-1.05, 0], [0, 1.05], [0, -1.05], [1.05, 1.05], [-1.05, 1.05], [1.05, -1.05], [-1.05, -1.05]]) {
+    const px = x + dx, pz = z + dz;
+    if (nearRoad(px, pz, 1.3)) return 'ติดถนน';
+    if (!baseFree(px, pz)) return 'ทับอาคาร คอก บ่อ หรือบ้าน';
+    for (const c of COL) { if (c.t === 'c') { if (Math.hypot(px - c.x, pz - c.z) < c.r + 0.1) return 'ชนสิ่งก่อสร้างหรือต้นไม้'; } else if (px > c.x - c.hw - 0.1 && px < c.x + c.hw + 0.1 && pz > c.z - c.hd - 0.1 && pz < c.z + c.hd + 0.1) return 'ชนสิ่งก่อสร้างหรือรั้ว'; }
+  }
+  return '';
+}
+let PLC = null, PICK = false, plcBar = null, plcOv = null;
+const snap5 = v => Math.round(v * 2) / 2;
+function plcUI() {
+  if (plcBar) return plcBar;
+  plcBar = document.createElement('div'); plcBar.id = 'plcbar'; plcBar.className = 'panel'; plcBar.hidden = true;
+  plcBar.innerHTML = '<div id="plctxt"></div><div class="row"><button class="btn" data-a="plcok" id="plcok">✅ วางที่นี่ (E)</button><button class="btn ghost" data-a="plcno">ยกเลิก</button></div>';
+  $('app').appendChild(plcBar); return plcBar;
+}
+function startPlace(i, mode) {
+  const o = plotObjs[i]; if (!o) return; PICK = false; const q = plotPos(i);
+  PLC = { i, mode, old: { x: q.x, z: q.z }, x: q.x, z: q.z, err: '' };
+  if (!plcOv) { plcOv = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), new THREE.MeshBasicMaterial({ color: 0x44ff66, transparent: true, opacity: 0.4, depthWrite: false })); plcOv.rotation.x = -Math.PI / 2; plcOv.position.y = 0.34; }
+  o.g.add(plcOv); plcUI(); toast(mode === 'new' ? 'เดินไปยังจุดที่ต้องการ แปลงจะตามอยู่ข้างหน้า สีเขียว = วางได้' : `ย้ายแปลง ${i + 1}: เดินไปยังจุดใหม่ แล้วกด วางที่นี่`);
+}
+function placeStep() {
+  const bar = plcUI(); bar.hidden = !(PLC || PICK) || !!tab;
+  if (!PLC) { if (PICK) $('plctxt').textContent = '✋ โหมดย้ายแปลง: เดินไปใกล้แปลงที่ต้องการ แล้วกดปุ่มกลมเพื่อหยิบ'; $('plcok').style.display = 'none'; return; }
+  $('plcok').style.display = '';
+  PLC.x = snap5(Math.max(BOUND.x0 + 1.4, Math.min(BOUND.x1 - 1.4, P.x + Math.sin(P.rot) * 2.8))); PLC.z = snap5(Math.max(BOUND.z0 + 1.4, Math.min(BOUND.z1 - 1.4, P.z + Math.cos(P.rot) * 2.8)));
+  if (PLC.x !== PLC.lx || PLC.z !== PLC.lz) { PLC.lx = PLC.x; PLC.lz = PLC.z; PLC.err = plotSpotErr(PLC.x, PLC.z, PLC.i); }
+  const o = plotObjs[PLC.i]; if (!o) { PLC = null; return; }
+  if (plcOv.parent !== o.g) o.g.add(plcOv);
+  o.g.position.set(PLC.x, 0, PLC.z); plcOv.material.color.set(PLC.err ? 0xff4444 : 0x44ff66);
+  $('plctxt').textContent = PLC.err ? '⛔ วางตรงนี้ไม่ได้: ' + PLC.err : `✅ วางแปลง ${PLC.i + 1} ตรงนี้ได้ · เดินเพื่อเลื่อน`;
+}
+function plcEnd() { if (plcOv && plcOv.parent) plcOv.parent.remove(plcOv); PLC = null; PICK = false; if (plcBar) plcBar.hidden = true; }
 // ---------------- sheets ----------------
 let tab = null;
 const A = {};
+Object.assign(A, {
+  buyplots: d => buyPlots(+d.n || 1, false), buyplotm: () => buyPlots(1, true),
+  pickmode: () => { if (PLC) return; PICK = true; closeSheet(); toast('✋ โหมดย้ายแปลง: เดินไปใกล้แปลงที่ต้องการ แล้วกดปุ่มกลม'); },
+  plcok: () => {
+    if (!PLC) { PICK = false; return; }
+    PLC.err = plotSpotErr(PLC.x, PLC.z, PLC.i); if (PLC.err) { toast('วางตรงนี้ไม่ได้: ' + PLC.err); return; }
+    const p = S.plots[PLC.i], mode = PLC.mode; p.x = PLC.x; p.z = PLC.z; delete p.un; delete p.paid; plcEnd(); sfx(700); toast(mode === 'new' ? '🌱 วางแปลงใหม่แล้ว' : '✅ ย้ายแปลงแล้ว'); save();
+  },
+  plcno: () => {
+    if (!PLC) { PICK = false; plcEnd(); return; }
+    const i = PLC.i, p = S.plots[i], mode = PLC.mode, old = PLC.old; plcEnd();
+    if (mode === 'new') { S.money += p.paid || 0; S.plots.splice(i, 1); toast('ยกเลิก คืนเงินแล้ว'); build3d(); } else { const o = plotObjs[i]; if (o) o.g.position.set(old.x, 0, old.z); }
+  },
+  plotreset: () => { if (PLC) return; if (!confirm('จัดแปลงทั้งหมดกลับเป็นแถวมาตรฐาน?')) return; S.plots.forEach(p => { delete p.x; delete p.z; delete p.un; delete p.paid; }); build3d(); toast('จัดแปลงเป็นแถวมาตรฐานแล้ว'); },
+});
+
 function openTab(t) { tab = t; $('sheet').hidden = false; document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === t)); render(); }
 function closeSheet() { tab = null; $('sheet').hidden = true; document.querySelectorAll('#nav button').forEach(b => b.classList.remove('on')); }
 const lock = lv => (lv > S.lvl ? ' lock' : '');
@@ -260,7 +344,14 @@ const cropList = f => Object.keys(CROPS).filter(k => f === 'veg' ? CROPS[k].k ==
 const FILT = [['all', 'ทั้งหมด'], ['veg', '🥕 ผัก'], ['fruit', '🍎 ผลไม้'], ['stock', '🎒 มีในคลัง']];
 function farmHTML() {
   const empty = S.plots.filter(p => !p.c).length, rd = S.plots.filter(cropReady).length, list = cropList(farmF);
-  let h = `<div class="row"><button class="btn" data-a="plantall" ${empty && canPlant(S.sel) ? '' : 'disabled'}>ปลูกทั้งหมด (${empty} แปลงว่าง)</button><button class="btn ghost" data-a="harvall" ${rd ? '' : 'disabled'}>เก็บเกี่ยวทั้งหมด (${rd})</button></div>
+  const w = plotWin(day()), n0 = S.plots.length, full = n0 >= PLOT_MAX, pk = PLOT_PROMO.packs;
+  const packBtn = n => { const c = plotPackCost(n), ok = !full && n0 + n <= PLOT_MAX && S.money >= c.pay; return `<button class="btn${n === 1 ? ' ghost' : ''}" style="min-width:0;padding:8px 4px" data-a="buyplots" data-n="${n}" ${ok ? '' : 'disabled'}>ซื้อ ${n} แปลง<br><small>${c.cut ? `<s>${fmt(c.sum)}</s> ` : ''}${fmt(c.pay)} ฿${c.cut ? ` · ลด ${fmt(c.cut)}` : ''}</small></button>`; };
+  const promoTxt = w.on ? `<b class="up">🎁 โปรแปลงผัก: ซื้อ 3 แปลง ลด ${fmt(plotPackCost(3).cut)} ฿ · ซื้อ 5 แปลง ลด ${fmt(plotPackCost(5).cut)} ฿ · วันที่ ${w.from}–${w.to} (เหลือ ${w.to - day() + 1} วัน)</b><br>หมดโปรแล้วกลับเป็นราคาปกติ` : `<small>🎁 โปรรอบหน้า: ซื้อ 3 แปลง ลด ${Math.round(pk[0][1] * 100)}% · ซื้อ 5 แปลง ลด ${Math.round(pk[1][1] * 100)}% · วันที่ ${w.from}–${w.to} (ตอนนี้ราคาปกติ)</small>`;
+  let h = `<h5>🧱 แปลงของคุณ ${n0}/${PLOT_MAX}${full ? ' · เต็มแล้ว' : ` · แปลงถัดไป ${fmt(plotPrice(n0))} ฿`}</h5>
+  <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">🎁</div><div><p>${promoTxt}<br>ราคาแปลงเพิ่มทีละนิด ตั้งแต่ ${plotPrice(PLOT_START)} ฿ ถึง ${plotPrice(PLOT_MAX - 1)} ฿ · ปลูกได้ทั้งผักและผลไม้ทุกชนิด</p></div></div>
+  <div class="row">${packBtn(1)}${packBtn(3)}${packBtn(5)}</div>
+  <div class="row"><button class="btn ghost" data-a="buyplotm" ${!full && S.money >= plotPrice(n0) ? '' : 'disabled'}>➕ ซื้อ 1 แปลง แล้ววางเอง</button><button class="btn ghost" data-a="pickmode">✋ ย้ายแปลง</button><button class="btn ghost" data-a="plotreset">↺ จัดแถวมาตรฐาน</button></div>
+  <h5>🌱 ปลูก</h5><div class="row"><button class="btn" data-a="plantall" ${empty && canPlant(S.sel) ? '' : 'disabled'}>ปลูกทั้งหมด (${empty} แปลงว่าง)</button><button class="btn ghost" data-a="harvall" ${rd ? '' : 'disabled'}>เก็บเกี่ยวทั้งหมด (${rd})</button></div>
   <div class="row"><button class="btn ghost" data-a="autofert">🧪 ใส่ปุ๋ยตอนปลูก: ${S.autoFert ? 'เปิด' : 'ปิด'} · มี ${S.fert || 0} กระสอบ</button><button class="btn ghost" data-a="tab" data-v="market" data-m="buy">🛒 ซื้อเมล็ด/ปุ๋ย</button></div>
   <p ${NOTE}>เลือกเมล็ดพันธุ์ แล้วแตะแปลงเพื่อปลูก (แตะแปลงที่กำลังโตเพื่อรดน้ำ) · เมล็ดที่ซื้อเก็บไว้ในคลังปลูกได้ฟรี ถ้าไม่มีจะหักเงินตอนปลูก</p><div class="row">${FILT.map(([k, t]) => chip('farmf', k, t, farmF === k)).join('')}</div>`;
   h += list.map(k => {
@@ -296,12 +387,12 @@ function shopHTML() {
   }).join('');
   h += '<h5>🧰 ของใช้ในฟาร์ม</h5>' + Object.keys(SUPPLY).map(k => {
     const s = SUPPLY[k], lk = s.lv && s.lv > S.lvl, off = dealFor(k, k);
-    return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${s.i}</div><div><h4>${s.n}<span class="pill">มี ${S[k] || 0}</span></h4><p>${supplyUnit(k)} ฿/ชิ้น${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · ${s.d}</p></div>${lk ? `<span class="pill">🔒 Lv.${s.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buysup" data-v="${k}" data-n="10" ${S.money >= supplyCost(k, 10) ? '' : 'disabled'}>×10 · ${fmt(supplyCost(k, 10))} ฿</button><button class="btn ghost" data-a="buysup" data-v="${k}" data-n="50" ${S.money >= supplyCost(k, 50) ? '' : 'disabled'}>×50 · ${fmt(supplyCost(k, 50))} ฿</button></div>`}</div>`;
+    return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${s.i}</div><div><h4>${s.n}<span class="pill">มี ${S[k] || 0}</span></h4><p>${supplyUnit(k)} ฿/ชิ้น${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · ${s.d}${promoTag(k, k, 'ชิ้น')}</p></div>${lk ? `<span class="pill">🔒 Lv.${s.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buysup" data-v="${k}" data-n="10" ${S.money >= supplyCost(k, 10) ? '' : 'disabled'}>×10 · ${fmt(supplyCost(k, 10))} ฿</button><button class="btn ghost" data-a="buysup" data-v="${k}" data-n="50" ${S.money >= supplyCost(k, 50) ? '' : 'disabled'}>×50 · ${fmt(supplyCost(k, 50))} ฿</button></div>`}</div>`;
   }).join('');
   h += `<h5>🌱 เมล็ดพันธุ์ ${Object.keys(CROPS).length} ชนิด</h5><div class="row">${FILT.map(([k, t]) => chip('shopf', k, t, shopF === k)).join('')}</div>`;
   h += list.map(k => {
     const c = CROPS[k], lk = c.lv > S.lvl, off = dealFor('seed', k), st = S.seeds[k] || 0;
-    return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${c.i}</div><div><h4>${c.n}${st ? `<span class="pill">🎒 ×${st}</span>` : ''}</h4><p>${seedUnit(k)} ฿/ถุง${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · โต ${growT(c.sec)} · ขาย ~${price(k)} ฿</p></div>${lk ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyseed" data-v="${k}" data-n="5" ${S.money >= seedCost(k, 5) ? '' : 'disabled'}>×5 · ${fmt(seedCost(k, 5))} ฿</button><button class="btn ghost" data-a="buyseed" data-v="${k}" data-n="20" ${S.money >= seedCost(k, 20) ? '' : 'disabled'}>×20 · ${fmt(seedCost(k, 20))} ฿</button></div>`}</div>`;
+    return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${c.i}</div><div><h4>${c.n}${st ? `<span class="pill">🎒 ×${st}</span>` : ''}</h4><p>${seedUnit(k)} ฿/ถุง${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · โต ${growT(c.sec)} · ขาย ~${price(k)} ฿${promoTag('seed', k, 'ถุง')}</p></div>${lk ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px">${[5, 10, 20].map(q => `<button class="btn${q === 5 ? '' : ' ghost'}" data-a="buyseed" data-v="${k}" data-n="${q}" ${S.money >= seedCost(k, q) ? '' : 'disabled'}>×${q} · ${fmt(seedCost(k, q))} ฿</button>`).join('')}</div>`}</div>`;
   }).join('') || '<p style="color:var(--ink-dim)">ไม่มีรายการ</p>';
   return h;
 }
@@ -331,14 +422,14 @@ function render() {
       <p class="dim" style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">🌾 อาหารสัตว์ในคลัง ${S.feed} ถุง · ⚡ อาหารเร่ง ${S.feed2 || 0} ถุง (ผลิตเร็วขึ้น 30%) · สัตว์แต่ละตัวใช้อาหาร 1–3 ถุงต่อรอบผลิต ${S.u.feeder ? '· เครื่องให้อาหารอัตโนมัติทำงานอยู่' : ''}</p>
       <h5>สัตว์ในคอก ${S.pen.length}/${PENS[S.u.pen]}</h5>` +
         (S.pen.map((a, i) => { const d = ANIMALS[a.a]; const st = a.st === 'ready' ? `<b class="up">พร้อมเก็บ ${ITEMS[d.prod].i}</b>` : a.st === 'idle' ? '<b class="down">หิว! ไม่มีอาหาร</b>' : `${a.pf ? '⚡ ' : ''}กำลังผลิต ${Math.max(0, Math.ceil(d.sec * (a.pf ? 0.7 : 1) - a.t))} วิ`; return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${st} · ให้ ${ITEMS[d.prod].n} ~${price(d.prod)} ฿</p></div>${a.st === 'ready' ? `<button class="btn" data-a="coll" data-v="${i}">เก็บ</button>` : `<button class="btn ghost" data-a="sellan" data-v="${i}">ขายสัตว์</button>`}</div>`; }).join('') || '<p>ยังไม่มีสัตว์</p>') +
-        `<h5>ซื้อสัตว์ใหม่</h5>` + Object.keys(ANIMALS).map(k => { const d = ANIMALS[k]; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<button class="btn" data-a="buyan" data-v="${k}">ซื้อ</button>`}</div>`; }).join('');
+        `<h5>ซื้อสัตว์ใหม่</h5>` + Object.keys(ANIMALS).map(k => { const d = ANIMALS[k]; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}${promoTag('animal', k, 'ตัว')}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyan" data-v="${k}">ซื้อ 1 · ${d.price} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="3">ซื้อ 3 · ${d.price * 3 - promoCut('animal', k, 3)} ฿</button></div>`}</div>`; }).join('');
     },
     pond() {
       $('stitle').textContent = '🐟 บ่อปลา';
       const rd = S.pond.filter(fishReady).length;
       return `<div class="row"><button class="btn" data-a="fishall" ${rd ? '' : 'disabled'}>จับปลาทั้งหมด (${rd})</button></div><h5>ในบ่อ ${S.pond.length}/${PONDS[S.u.pond]}</h5>` +
         (S.pond.map((f, i) => { const d = FISH[f.f]; const left = Math.max(0, Math.ceil(d.sec - f.p)); return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${fishReady(f) ? '<b class="up">พร้อมจับ</b>' : `โตอีก ${left >= 60 ? Math.ceil(left / 60) + ' นาที' : left + ' วิ'}`} · ขาย ~${price(f.f)} ฿</p></div>${fishReady(f) ? `<button class="btn" data-a="fish" data-v="${i}">จับ</button>` : ''}</div>`; }).join('') || '<p style="color:var(--ink-dim)">บ่อยังว่าง ปล่อยลูกปลาด้านล่างได้เลย</p>') +
-        `<h5>ปล่อยลูกปลา (เต็มบ่อเท่าที่เงินพอ แตะ 1 ครั้ง = 1 ตัว)</h5>` + Object.keys(FISH).map(k => { const d = FISH[k]; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>ลูกปลา ${d.price} ฿ · โต ${Math.round(d.sec / 60 * 10) / 10} นาที · ขาย ~${price(k)} ฿</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<button class="btn" data-a="buyfish" data-v="${k}">ปล่อย</button>`}</div>`; }).join('');
+        `<h5>ปล่อยลูกปลา (เต็มบ่อเท่าที่เงินพอ แตะ 1 ครั้ง = 1 ตัว)</h5>` + Object.keys(FISH).map(k => { const d = FISH[k]; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>ลูกปลา ${d.price} ฿ · โต ${Math.round(d.sec / 60 * 10) / 10} นาที · ขาย ~${price(k)} ฿${promoTag('fish', k, 'ตัว')}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyfish" data-v="${k}">ปล่อย 1 · ${d.price} ฿</button><button class="btn ghost" data-a="buyfishn" data-v="${k}" data-n="5">ปล่อย 5 · ${d.price * 5 - promoCut('fish', k, 5)} ฿</button></div>`}</div>`; }).join('');
     },
     market() {
       $('stitle').textContent = '🏪 ตลาด';
@@ -411,6 +502,8 @@ Object.assign(A, {
   sellcat: d => { let g = 0; for (const k of Object.keys(S.inv)) if (catOf(k) === d.v) g += sell(k, 1e9); if (g) toast(`ขาย${d.v} ได้ ${fmt(g)} ฿`); },
   sellgood: () => { let g = 0; for (const k of Object.keys(S.inv)) if (isGood(k)) g += sell(k, 1e9); if (g) toast(`ขายของราคาดี ได้ ${fmt(g)} ฿`); },
   buyan: d => { const a = ANIMALS[d.v]; if (S.pen.length >= PENS[S.u.pen]) { toast('คอกเต็ม ขยายคอกที่แท็บ ⭐'); return; } if (!spend(a.price)) return; S.pen.push({ a: d.v, st: 'idle', t: 0 }); sfx(600); build3d(); },
+  buyann: d => { const n = +d.n || 3, a = ANIMALS[d.v]; if (S.pen.length + n > PENS[S.u.pen]) { toast(`คอกมีที่ไม่พอสำหรับ ${n} ตัว ขยายคอกที่แท็บ ⭐`); return; } if (!spend(a.price * n - promoCut('animal', d.v, n))) return; for (let k = 0; k < n; k++) S.pen.push({ a: d.v, st: 'idle', t: 0 }); sfx(600); build3d(); },
+  buyfishn: d => { const n = +d.n || 5, f = FISH[d.v]; if (S.pond.length + n > PONDS[S.u.pond]) { toast(`บ่อมีที่ไม่พอสำหรับ ${n} ตัว ขยายบ่อที่แท็บ ⭐`); return; } if (!spend(f.price * n - promoCut('fish', d.v, n))) return; for (let k = 0; k < n; k++) S.pond.push({ f: d.v, p: 0 }); sfx(560); build3d(); },
   sellan: d => { const a = S.pen[+d.v], g = Math.round(ANIMALS[a.a].price * 0.6); S.pen.splice(+d.v, 1); S.money += g; toast(`ขายสัตว์ได้ ${fmt(g)} ฿`); build3d(); },
   coll: d => { collectAnimal(+d.v); },
   collall: () => { let n = 0; S.pen.forEach((a, i) => { if (collectAnimal(i)) n++; }); if (n) toast(`เก็บผลผลิต ${n} ชิ้น`); },
@@ -543,6 +636,7 @@ const ROAD_LINES = [
   { w: 1.8, pts: [[1.8, -7.2], [4, -8.2], [6, -8.5], [7.5, -8.1]] },                                            // plaza -> workshop
   { w: 1.6, pts: [[0.3, 12.3], [2.4, 12.6], [4.2, 12.4]] },                                                     // spur to the truck bay
   { w: 1.7, pts: [[-0.1, 12.6], [-2.8, 13.0], [-5.4, 12.9], [-7.5, 12.4]] },                                    // to the front door of the house
+  { w: 2.3, pts: [[0.1, 13.8], [0.3, 17.5], [-0.3, 23], [0.3, 29.5], [0, 35.5]] },                                // the main road carries on south through the new field area
 ];
 const ROADPTS = [];   // sampled road centre points, so grass, flowers and trees keep off the roads
 function roadMesh(pts, w, y, material, uvScale) {
@@ -557,8 +651,12 @@ function roadMesh(pts, w, y, material, uvScale) {
   const m = new THREE.Mesh(g, material); m.receiveShadow = true; return m;
 }
 const roadMats = {};
+// ground where nothing but a bed may stand: not the pen, the pond, the plaza, the market row, the truck bay or the house
+function baseFree(x, z) {
+  const penR = { x0: LAY.pen.x - 4.4, x1: LAY.pen.x + 4.4, z0: LAY.pen.z - 3.4, z1: LAY.pen.z + 3.2 };
+  return !(x > penR.x0 && x < penR.x1 && z > penR.z0 && z < penR.z1) && !(Math.hypot((x - LAY.pond.x) / 4.6, (z - LAY.pond.z) / 3.7) < 1) && !(z < -8 && z > -13.6 && Math.abs(x) < 10.5) && !(Math.hypot(x - LAY.plaza.x, z - LAY.plaza.z) < 3.2) && !(Math.hypot(x - LAY.truck.x, z - LAY.truck.z) < 2.2) && !(x > -12.9 && x < -7.2 && z > 9.2 && z < 13.8);
+}
 const nearRoad = (x, z, r) => { for (const p of ROADPTS) if (Math.hypot(p[0] - x, p[1] - z) < r) return true; return false; };
-const plotPos = i => ({ x: LAY.plotX[i % 4], z: LAY.plotZ - Math.floor(i / 4) * LAY.plotDz });
 // a vegetable bed is a field of four plants, not one
 function cropField(id, stage) {
   const g = new THREE.Group(), s = 0.7 * (0.3 + 0.22 * stage);
@@ -625,20 +723,20 @@ function build3d() {
   for (const R of ROAD_LINES) { const c = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'catmullrom', 0.5); for (let i = 0; i <= 40; i++) { const p = c.getPoint(i / 40); ROADPTS.push([p.x, p.z]); } }
   { const px = LAY.plaza; for (let a = 0; a < 12; a++) ROADPTS.push([px.x + Math.cos(a / 12 * 6.283) * 2, px.z + Math.sin(a / 12 * 6.283) * 2]); ROADPTS.push([px.x, px.z]); }
   const penR = { x0: LAY.pen.x - 4.4, x1: LAY.pen.x + 4.4, z0: LAY.pen.z - 3.4, z1: LAY.pen.z + 3.2 };
-  const free = (x, z) => !nearRoad(x, z, 2.1) && !(Math.abs(x) > 2.3 && Math.abs(x) < 6.9 && z > 2.4 && z < 11.5) && !(x > penR.x0 && x < penR.x1 && z > penR.z0 && z < penR.z1) && !(Math.hypot((x - LAY.pond.x) / 4.6, (z - LAY.pond.z) / 3.7) < 1) && !(z < -8 && z > -13.6 && Math.abs(x) < 10.5) && !(Math.hypot(x - LAY.plaza.x, z - LAY.plaza.z) < 3.2) && !(Math.hypot(x - LAY.truck.x, z - LAY.truck.z) < 2.2) && !(x > -12.9 && x < -7.2 && z > 9.2 && z < 13.8);
+  const free = (x, z) => !nearRoad(x, z, 2.1) && baseFree(x, z) && !S.plots.some((p, i) => { const q = plotPos(i); return Math.abs(x - q.x) < 1.5 && Math.abs(z - q.z) < 1.5; });
   // ground
-  const gt = grassTex(); mk(root, new THREE.PlaneGeometry(110, 110), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, -10], 1, [-Math.PI / 2, 0, 0]).castShadow = false;
+  const gt = grassTex(); mk(root, new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, 10], 1, [-Math.PI / 2, 0, 0]).castShadow = false;
   // roads: a darker gravel edge, then the dirt surface, and a stone plaza where they meet
   { const dt = dirtTex(); roadMats.edge = roadMats.edge || new THREE.MeshStandardMaterial({ color: lin(0x8c7a55), roughness: 1, side: THREE.DoubleSide }); roadMats.top = roadMats.top || new THREE.MeshStandardMaterial({ map: dt, roughness: 1, side: THREE.DoubleSide });
     for (const R of ROAD_LINES) { root.add(roadMesh(R.pts, R.w + 0.5, 0.022, roadMats.edge, 3)); root.add(roadMesh(R.pts, R.w, 0.03, roadMats.top, 2.4)); }
     const pl = LAY.plaza; mk(root, cyl, mat(0x8c7a55), [pl.x, 0.02, pl.z], [2.75, 0.03, 2.75]).castShadow = false; const pt = mk(root, cyl, new THREE.MeshStandardMaterial({ map: dt, roughness: 1 }), [pl.x, 0.04, pl.z], [2.5, 0.03, 2.5]); pt.castShadow = false;
     for (let a = 0; a < 18; a++) { const an = a / 18 * 6.283; mk(root, sph, mat(a % 2 ? 0x9e9e9e : 0xb3aea2), [pl.x + Math.cos(an) * 2.62, 0.07, pl.z + Math.sin(an) * 2.62], [0.2, 0.12, 0.2]); } }
   // grass tufts and wild flowers, only where nothing stands
-  { const blade = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.55, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 420), dm = new THREE.Object3D(), gc = [0x6aa84a, 0x5a9a3e, 0x7bb656, 0x4f8a37];
-    let n = 0; for (let k = 0; k < 4000 && n < 420; k++) { const x = rnd(-16, 16), z = rnd(-12, 16); if (!free(x, z)) continue; dm.position.set(x, 0.25, z); dm.rotation.set(rnd(-0.25, 0.25), rnd(0, 6), rnd(-0.25, 0.25)); dm.scale.setScalar(rnd(0.7, 1.5)); dm.updateMatrix(); blade.setMatrixAt(n, dm.matrix); blade.setColorAt(n, lin(gc[n % 4])); n++; }
+  { const blade = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.55, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 900), dm = new THREE.Object3D(), gc = [0x6aa84a, 0x5a9a3e, 0x7bb656, 0x4f8a37];
+    let n = 0; for (let k = 0; k < 9000 && n < 900; k++) { const x = rnd(BOUND.x0 + 1, BOUND.x1 - 1), z = rnd(BOUND.z0 + 1, BOUND.z1 - 1); if (!free(x, z)) continue; dm.position.set(x, 0.25, z); dm.rotation.set(rnd(-0.25, 0.25), rnd(0, 6), rnd(-0.25, 0.25)); dm.scale.setScalar(rnd(0.7, 1.5)); dm.updateMatrix(); blade.setMatrixAt(n, dm.matrix); blade.setColorAt(n, lin(gc[n % 4])); n++; }
     blade.count = n; blade.instanceMatrix.needsUpdate = true; if (blade.instanceColor) blade.instanceColor.needsUpdate = true; root.add(blade);
-    const fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 6, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 }), 90), fc = [0xf2f2ea, 0xffd23f, 0xf08aa0, 0xb69be0, 0xff8a65]; let m2 = 0;
-    for (let k = 0; k < 1600 && m2 < 90; k++) { const x = rnd(-16, 16), z = rnd(-12, 16); if (!free(x, z)) continue; dm.position.set(x, 0.32, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(rnd(0.8, 1.3)); dm.updateMatrix(); fl.setMatrixAt(m2, dm.matrix); fl.setColorAt(m2, lin(fc[m2 % 5])); m2++; }
+    const fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 6, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 }), 200), fc = [0xf2f2ea, 0xffd23f, 0xf08aa0, 0xb69be0, 0xff8a65]; let m2 = 0;
+    for (let k = 0; k < 3500 && m2 < 200; k++) { const x = rnd(BOUND.x0 + 1, BOUND.x1 - 1), z = rnd(BOUND.z0 + 1, BOUND.z1 - 1); if (!free(x, z)) continue; dm.position.set(x, 0.32, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(rnd(0.8, 1.3)); dm.updateMatrix(); fl.setMatrixAt(m2, dm.matrix); fl.setColorAt(m2, lin(fc[m2 % 5])); m2++; }
     fl.count = m2; fl.instanceMatrix.needsUpdate = true; if (fl.instanceColor) fl.instanceColor.needsUpdate = true; root.add(fl); }
   [[-14, -26, 9, 0x6fae5a], [0, -30, 11, 0x5e9e50], [15, -27, 8, 0x6fae5a], [-26, -20, 7, 0x5e9e50], [27, -18, 7, 0x6fae5a]].forEach(([x, z, r, c]) => mk(root, sph, mat(c), [x, 0, z], [r * 1.3, r * 0.7, r]));
   // vegetable beds: raised timber frames in two blocks either side of the road
@@ -681,6 +779,8 @@ function build3d() {
   const D = S.deco;
   const tree = (x, z, s = 1) => { const hh = hash(x + ',' + z), gs = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35]; mk(root, cyl, mat(0x5a4030, { roughness: 1 }), [x, 0.9 * s, z], [0.17 * s, 1.8 * s, 0.17 * s]); [[0, 2.3, 0, 1.15], [0.55, 1.9, 0.25, 0.8], [-0.5, 2.0, -0.2, 0.85], [0.1, 2.95, 0.1, 0.7], [-0.2, 1.8, 0.5, 0.7]].forEach(([dx, dy, dz, r], i) => mk(root, sph, mat(gs[(hh + i) % 4], { roughness: 1 }), [x + dx * s, dy * s, z + dz * s], [r * s, r * 0.88 * s, r * s])); };
   [[-10.2, 5], [11.4, 2.2], [-12.2, -7.5], [12.2, -8.4], [11.6, 10.2], [-3.6, -12.4]].forEach(([x, z], i) => { tree(x, z, 1 + (i % 3) * 0.12); COL.push({ t: 'c', x, z, r: 0.4 }); });
+  // a ring of trees marks the edge of the bigger farm
+  for (let k = 0; k < 34; k++) { const t = k / 34, x = t < 0.28 ? BOUND.x0 + 0.5 : t < 0.56 ? BOUND.x1 - 0.5 : BOUND.x0 + 3 + (BOUND.x1 - BOUND.x0 - 6) * ((t - 0.56) / 0.44), z = t < 0.56 ? BOUND.z0 + 2 + (BOUND.z1 - BOUND.z0 - 3) * ((t % 0.28) / 0.28) : (k % 2 ? BOUND.z1 - 0.5 : BOUND.z0 + 0.4); if (!free(x, z) || nearRoad(x, z, 2.6)) continue; tree(x, z, 1 + (k % 3) * 0.15); COL.push({ t: 'c', x, z, r: 0.4 }); }
   if (D.tree) { mk(root, cyl, mat(0x6d4c41), [-12.2, 0.8, 7.6], [0.2, 1.6, 0.2]); mk(root, sph, mat(0x4f9a4a), [-12.2, 2.1, 7.6], 1.1); for (let i = 0; i < 5; i++) mk(root, sph, mat(0xe0443a), [-12.2 + Math.cos(i * 1.3) * 0.9, 2 + (i % 2) * 0.4, 7.6 + Math.sin(i * 1.3) * 0.9], 0.14); COL.push({ t: 'c', x: -12.2, z: 7.6, r: 0.4 }); }
   if (D.flower) for (let i = 0; i < 12; i++) { const x = 8.6 + (i % 4) * 0.5, z = 6 + Math.floor(i / 4) * 0.5; mk(root, cyl, mat(0x4f9a4a), [x, 0.15, z], [0.02, 0.3, 0.02]); mk(root, sph, mat([0xf08aa0, 0xffcf3f, 0xf5f5f0, 0x8e44ad][i % 4]), [x, 0.35, z], 0.12); }
   if (D.gazebo) { const g = new THREE.Group(); g.position.set(-10, 0, 6.8); root.add(g); for (const x of [-1, 1]) for (const z of [-1, 1]) mk(g, cyl, mat(0xf5f5f0), [x, 1, z], [0.08, 2, 0.08]); mk(g, cone, mat(0xb8322a), [0, 2.5, 0], [1.9, 1, 1.9], [0, Math.PI / 4, 0]); mk(g, cyl, mat(0xb08968), [0, 0.06, 0], [1.4, 0.1, 1.4]); }
@@ -724,7 +824,7 @@ const KF = [   // hour, sky top, horizon, light colour, light power, ambient. Af
   [0, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95], [5, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95], [6.5, 0x4a78b8, 0xf2a86a, 0xffb878, 1.1, 0.75], [8.5, 0x3f86d6, 0xbfdcf0, 0xfff2dc, 1.8, 0.95],
   [12, 0x3a82d8, 0xc4e0f4, 0xfff6e8, 2.0, 1.0], [16, 0x3f86d6, 0xbfdcf0, 0xfff2dc, 1.8, 0.95], [18, 0x4a5f9c, 0xf08a5a, 0xff9a5a, 1.15, 0.75], [19.5, 0x1b2658, 0x4a5b94, 0xc4d6ff, 1.0, 0.9], [21, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95], [24, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95],
 ];
-const LT = { top: new THREE.Color(), hor: new THREE.Color(), sun: new THREE.Color(), tmp: new THREE.Color(), key: '', night: 0 };
+const LT = { ld: new THREE.Vector3(0, 30, 12), top: new THREE.Color(), hor: new THREE.Color(), sun: new THREE.Color(), tmp: new THREE.Color(), key: '', night: 0 };
 const hourNow = () => (9 + (S ? S.dayT / dayLen() * 24 : 0)) % 24;
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const NIGHT = { fill: null, toast: 0, moon: null, halo: null, stars: [], lamps: [], wins: [], glint: null, lampL: null, mv: new THREE.Vector3() };
@@ -743,7 +843,7 @@ function applyLight() {
   const az = (h - 6) / 14 * Math.PI, el = (8 + 62 * Math.sin(Math.max(0, Math.min(1, (h - 6) / 13.5)) * Math.PI)) * Math.PI / 180;
   const hm = h < 12 ? h + 24 : h, um = Math.max(0, Math.min(1, (hm - 18) / 12)), azm = um * Math.PI, elm = (14 + 20 * Math.sin(um * Math.PI)) * Math.PI / 180;
   const mx = -Math.cos(azm) * 30, my = Math.sin(elm) * 30 + 3, mz = -8 - 8 * Math.sin(azm), sx = -Math.cos(az) * 26, sy = Math.max(6, Math.sin(el) * 30), sz = 12 + Math.sin(az) * 4;
-  sunL.position.set(sx + (mx - sx) * night, sy + (my - sy) * night, sz + (mz - sz) * night);
+  LT.ld.set(sx + (mx - sx) * night, sy + (my - sy) * night, sz + (mz - sz) * night);
   NIGHT.mv.set(mx, my, mz);
   if (NIGHT.moon) {
     const hl = Math.hypot(mx, mz - 10), esk = (7 + 13 * Math.sin(um * Math.PI)) * Math.PI / 180, up = night > 0.02 && um > 0 && um < 1, d = new THREE.Vector3(mx / hl * Math.cos(esk), Math.sin(esk), (mz - 10) / hl * Math.cos(esk)).multiplyScalar(175), fade = Math.min(1, night * 1.4) * Math.min(1, Math.sin(um * Math.PI) * 4 + 0.15);
@@ -806,7 +906,7 @@ function resolve(x, z, r) {
     if (c.t === 'c') { const dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz), m = r + c.r; if (d < m && d > 1e-5) { x = c.x + dx / d * m; z = c.z + dz / d * m; } }
     else { const cx = Math.max(c.x - c.hw, Math.min(c.x + c.hw, x)), cz = Math.max(c.z - c.hd, Math.min(c.z + c.hd, z)), dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz); if (d < r) { if (d > 1e-5) { x = cx + dx / d * r; z = cz + dz / d * r; } else { z = c.z + (z > c.z ? c.hd + r : -c.hd - r); } } }
   }
-  return [Math.max(-12.8, Math.min(12.8, x)), Math.max(-8.2, Math.min(13.4, z))];
+  return [Math.max(BOUND.x0 + 0.6, Math.min(BOUND.x1 - 0.6, x)), Math.max(BOUND.z0 + 0.6, Math.min(BOUND.z1 - 0.6, z))];
 }
 const V = { x: 0, z: 0 }, CF = { x: 0, z: 0, yaw: 0, pitch: 0.62, init: 0 };
 function stepPlayer(dt) {
@@ -835,10 +935,12 @@ function followCam(dt) {
   playerG.position.x = P.x; playerG.position.z = P.z; playerG.rotation.y = P.rot;
   const cp = Math.cos(CF.pitch);
   camera.position.set(CF.x + Math.sin(CF.yaw) * cp * CAM.dist, 1.3 + Math.sin(CF.pitch) * CAM.dist, CF.z + Math.cos(CF.yaw) * cp * CAM.dist); camera.lookAt(CF.x, 1.1, CF.z);
-  sunL.target.position.set(CF.x * 0.5, 0, CF.z * 0.5);
+  sunL.target.position.set(CF.x, 0, CF.z); sunL.position.set(CF.x + LT.ld.x, LT.ld.y, CF.z + LT.ld.z);   // the shadow area follows you around the bigger farm
 }
 function water(i) { const p = S.plots[i]; if (p.c && !p.w) { p.w = 1; sfx(420); toast('💧 รดน้ำแล้ว โตเร็วขึ้น 1.5 เท่า'); } }
 function targets() {
+  if (PLC) return { d: 0, icon: '✅', label: PLC.err ? 'วางตรงนี้ไม่ได้' : 'วางแปลงที่นี่', fn: () => A.plcok() };
+  if (PICK) { let best = null; S.plots.forEach((p, i) => { const o = plotPos(i), d = Math.hypot(P.x - o.x, P.z - o.z); if (d < 2.2 && (!best || d < best.d)) best = { d, i }; }); return best ? { d: best.d, icon: '✋', label: `หยิบแปลง ${best.i + 1} เพื่อย้าย`, fn: () => startPlace(best.i, 'move') } : null; }
   const c = [], add = (d, icon, label, fn) => c.push({ d, icon, label, fn }), at = (x, z) => Math.hypot(P.x - x, P.z - z);
   S.plots.forEach((p, i) => {
     const o = plotPos(i), d = at(o.x, o.z); if (d > 1.5) return;
@@ -858,10 +960,10 @@ function targets() {
   if (S.u.work && at(LAY.work.x, LAY.work.z + 1.4) < 3.2) add(at(LAY.work.x, LAY.work.z + 1.4), '🏭', 'โรงงานแปรรูป', () => openTab('work'));
   return c.sort((a, b) => a.d - b.d)[0] || null;
 }
-function doAct() { if (curT) { curT.fn(); render(); hud(); } }
+function doAct() { if (curT) { curT.fn(); render(); hud(); queueSave(); } }
 function bindInput() {
   const joy = $('joy'), knob = $('knob');
-  const jset = e => { const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2; let dx = e.clientX - cx, dy = e.clientY - cy; const m = Math.hypot(dx, dy), R = 44; if (m > R) { dx = dx / m * R; dy = dy / m * R; } JOY.x = dx / R; JOY.y = -dy / R; knob.style.transform = `translate(${dx}px,${dy}px)`; };
+  const jset = e => { const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2; let dx = e.clientX - cx, dy = e.clientY - cy; const m = Math.hypot(dx, dy), R = Math.round(r.width * 0.34); if (m > R) { dx = dx / m * R; dy = dy / m * R; } JOY.x = dx / R; JOY.y = -dy / R; knob.style.transform = `translate(${dx}px,${dy}px)`; };
   joy.addEventListener('pointerdown', e => { JOY.id = e.pointerId; joy.setPointerCapture(e.pointerId); jset(e); });
   joy.addEventListener('pointermove', e => { if (e.pointerId === JOY.id) jset(e); });
   const jend = e => { if (e.pointerId === JOY.id) { JOY.id = null; JOY.x = JOY.y = 0; knob.style.transform = ''; } };
@@ -895,16 +997,19 @@ let loopOn = false, lastT = 0, acc = 0, saveT = 0;
 function sanitize(S, raw) {
   const num = (v, d, a = -Infinity, b = Infinity) => (typeof v === 'number' && isFinite(v) ? Math.min(b, Math.max(a, v)) : d);
   const F = fresh(S.name);
-  if (raw.pv !== 2) { S.pv = 2; S.u = Object.assign({}, S.u); S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= (Array.isArray(S.plots) ? S.plots.length : 0))); if (S.u.plot < 0) S.u.plot = PLOTS.length - 1; }   // old saves counted plots 6/8/12/16: keep the beds you had
+  if ((raw.pv || 0) < 2) { S.pv = 2; S.u = Object.assign({}, S.u); S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= (Array.isArray(S.plots) ? S.plots.length : 0))); if (S.u.plot < 0) S.u.plot = PLOTS.length - 1; }   // old saves counted plots 6/8/12/16: keep the beds you had
   S.name = typeof S.name === 'string' && S.name ? S.name.slice(0, 14) : 'ชาวไร่';
   for (const k of ['money', 'xp', 't', 'dayT', 'bank']) S[k] = num(S[k], F[k], 0);
   S.lvl = Math.floor(num(S.lvl, 1, 1)); S.dayN = Math.floor(num(S.dayN, 1, 1)); S.bankDay = Math.floor(num(S.bankDay, S.dayN, 1)); S.en = num(S.en, 100, 0, 100);
   for (const k of ['feed', 'feed2', 'fert']) S[k] = Math.floor(num(S[k], k === 'feed' ? F.feed : 0, 0));
   if (!TM[S.tm]) S.tm = 'normal'; if (S.dayT >= dayLen()) S.dayT = 0;
   S.u = Object.assign({}, F.u, S.u && typeof S.u === 'object' ? S.u : {}); for (const u of UPS) S.u[u.k] = Math.floor(num(S.u[u.k], 0, 0, u.max));
-  S.u.plot = Math.floor(num(S.u.plot, 0, 0, PLOTS.length - 1));
+  S.u.plot = Math.floor(num(S.u.plot, 0, 0, PLOTS.length - 1)); S.pv = 3;
   if (!Array.isArray(S.plots)) S.plots = [];
-  S.plots = S.plots.slice(0, PLOTS[PLOTS.length - 1]).map(p => { const o = p && typeof p === 'object' ? p : {}; const c = CROPS[o.c] ? o.c : null; return { c, p: c ? num(o.p, 0, 0, CROPS[c].sec) : 0, w: o.w ? 1 : 0, f: o.f ? 1 : 0 }; });
+  // a bed that was bought but never placed (the game was closed while placing it) is refunded; a saved position outside the farm is dropped (the bed goes back to its row)
+  let refund = 0; S.plots = S.plots.filter(p => { if (p && p.un) { refund += num(p.paid, 0, 0); return false; } return true; }); S.money += refund;
+  S.plots = S.plots.slice(0, PLOT_MAX).map(p => { const o = p && typeof p === 'object' ? p : {}; const c = CROPS[o.c] ? o.c : null; const r = { c, p: c ? num(o.p, 0, 0, CROPS[c].sec) : 0, w: o.w ? 1 : 0, f: o.f ? 1 : 0 };
+    if (typeof o.x === 'number' && typeof o.z === 'number' && isFinite(o.x) && isFinite(o.z) && o.x > BOUND.x0 && o.x < BOUND.x1 && o.z > BOUND.z0 && o.z < BOUND.z1) { r.x = o.x; r.z = o.z; } return r; });
   S.pen = (Array.isArray(S.pen) ? S.pen : []).filter(a => a && ANIMALS[a.a]).map(a => ({ a: a.a, st: ['idle', 'prod', 'ready'].includes(a.st) ? a.st : 'idle', t: num(a.t, 0, 0), pf: a.pf ? 1 : 0 }));
   S.pond = (Array.isArray(S.pond) ? S.pond : []).filter(f => f && FISH[f.f]).map(f => ({ f: f.f, p: num(f.p, 0, 0, FISH[f.f].sec) }));
   const inv = {}; for (const k in (S.inv && typeof S.inv === 'object' ? S.inv : {})) { const v = Math.floor(num(S.inv[k], 0, 0)); if (v > 0 && ITEMS[k]) inv[k] = v; } S.inv = inv;
@@ -914,7 +1019,7 @@ function sanitize(S, raw) {
   if (S.job && !(RECIPES.some(r => r.id === S.job.id))) S.job = null; else if (S.job) S.job.t = num(S.job.t, 0, 0);
   if (!Array.isArray(S.hist)) S.hist = []; if (!S.led || typeof S.led !== 'object') S.led = null;
   if (!S.stats || typeof S.stats !== 'object') S.stats = { earned: 0 }; S.stats.earned = num(S.stats.earned, 0, 0);
-  S.px = num(S.px, 0, -13, 13); S.pz = num(S.pz, 10.5, -8, 13.4); S.last = num(S.last, Date.now(), 0, Date.now());
+  S.px = num(S.px, 0, BOUND.x0, BOUND.x1); S.pz = num(S.pz, 10.5, BOUND.z0, BOUND.z1); S.last = num(S.last, Date.now(), 0, Date.now());
 }
 async function startGame(n, name) {
   let data = typeof name === 'string' ? null : await readSlot(n);
@@ -933,7 +1038,7 @@ async function startGame(n, name) {
 function loop(now) {
   const dt = Math.min(0.25, (now - lastT) / 1000); lastT = now;
   if (S) {
-    const dm = Math.min(dt, 0.05); update(dt); syncPlots(); anim(dm); stepPlayer(dm); followCam(dm); applyLight();
+    const dm = Math.min(dt, 0.05); update(dt); syncPlots(); anim(dm); stepPlayer(dm); placeStep(); followCam(dm); applyLight();
     const t = tab || !$('tip').hidden ? null : targets(); curT = t;
     const lbl = $('actlbl'), b = $('act'), key = t ? t.icon + t.label : '';
     if (loop.k !== key) { loop.k = key; b.textContent = t ? t.icon : '✋'; b.classList.toggle('idle', !t); lbl.hidden = !t; lbl.textContent = t ? t.label : ''; }
