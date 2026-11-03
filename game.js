@@ -11,15 +11,23 @@ const FEED_PRICE = 3;
 const M = c => Math.round(c * SELL_X * 10) / 10;
 // xp is still earned as before the price change (sale prices are now 3x the cost, so xp is scaled back by this)
 const XPF = 1.07 / (SELL_X * 0.8 / 3);
-const CROPS = {
-  carrot: { n: 'แครอท', i: '🥕', seed: 3, sec: 30, sell: M(3), lv: 1, col: 0xf08a24 },
-  cabbage: { n: 'กะหล่ำปลี', i: '🥬', seed: 5, sec: 50, sell: M(5), lv: 1, col: 0x8fd16a },
-  tomato: { n: 'มะเขือเทศ', i: '🍅', seed: 9, sec: 80, sell: M(9), lv: 2, col: 0xe0443a },
-  corn: { n: 'ข้าวโพด', i: '🌽', seed: 13, sec: 120, sell: M(13), lv: 3, col: 0xf2c12e },
-  strawberry: { n: 'สตรอว์เบอร์รี', i: '🍓', seed: 21, sec: 180, sell: M(21), lv: 5, col: 0xe8466a },
-  pumpkin: { n: 'ฟักทอง', i: '🎃', seed: 32, sec: 240, sell: M(32), lv: 7, col: 0xe8761e },
-  watermelon: { n: 'แตงโม', i: '🍉', seed: 48, sec: 300, sell: M(48), lv: 9, col: 0x3f9a4a },
-};
+// crops: id, name, icon, seed price, seconds to grow, level, colour, kind (veg / fruit), model shape, leaf colour. Sale price is always 3x the seed price.
+const CROP_ROWS = [
+  ['carrot', 'แครอท', '🥕', 3, 30, 1, 0xf08a24, 'veg'], ['cabbage', 'กะหล่ำปลี', '🥬', 5, 50, 1, 0x8fd16a, 'veg'],
+  ['lettuce', 'ผักกาดหอม', '🥗', 4, 40, 2, 0x9be36a, 'veg', 'head', 0x6ec44f], ['basil', 'โหระพา', '🌿', 6, 55, 2, 0x2f9e44, 'veg', 'herb', 0x2f9e44], ['tomato', 'มะเขือเทศ', '🍅', 9, 80, 2, 0xe0443a, 'veg'],
+  ['cucumber', 'แตงกวา', '🥒', 11, 90, 3, 0x3f8f3a, 'veg', 'vine', 0x3c8a34], ['chili', 'พริก', '🌶️', 15, 120, 3, 0xe03a2f, 'veg', 'bush', 0x3f8f3a], ['corn', 'ข้าวโพด', '🌽', 13, 120, 3, 0xf2c12e, 'veg'],
+  ['onion', 'หอมหัวใหญ่', '🧅', 18, 130, 4, 0xd9a3c9, 'veg', 'root', 0x6fb14f], ['garlic', 'กระเทียม', '🧄', 20, 140, 4, 0xf3efe2, 'veg', 'root', 0x7fc15a],
+  ['potato', 'มันฝรั่ง', '🥔', 26, 170, 5, 0xc9a36b, 'veg', 'root', 0x4f9a4a], ['mushroom', 'เห็ดฟาง', '🍄', 30, 180, 5, 0xb5651d, 'veg', 'mush', 0xf1e6cf], ['strawberry', 'สตรอว์เบอร์รี', '🍓', 21, 180, 5, 0xe8466a, 'fruit'],
+  ['eggplant', 'มะเขือม่วง', '🍆', 36, 240, 6, 0x5b2a86, 'veg', 'bush', 0x3f8f3a], ['broccoli', 'บรอกโคลี', '🥦', 38, 230, 6, 0x2e8b3c, 'veg', 'head', 0x2d7a35],
+  ['sweetpotato', 'มันเทศ', '🍠', 42, 260, 7, 0xc0603a, 'veg', 'root', 0x5aa650], ['pumpkin', 'ฟักทอง', '🎃', 32, 240, 7, 0xe8761e, 'veg'],
+  ['banana', 'กล้วย', '🍌', 52, 320, 8, 0xf5d63c, 'fruit', 'palm', 0x5aa63f], ['orange', 'ส้ม', '🍊', 58, 340, 8, 0xff8c1a, 'fruit', 'tree', 0x3f8f3a],
+  ['watermelon', 'แตงโม', '🍉', 48, 300, 9, 0x3f9a4a, 'fruit'], ['lemon', 'มะนาว', '🍋', 62, 360, 9, 0xf4e04d, 'fruit', 'tree', 0x4a9a3a],
+  ['pineapple', 'สับปะรด', '🍍', 75, 420, 10, 0xf2b822, 'fruit', 'pine', 0x4f9a3a], ['melon', 'เมลอน', '🍈', 80, 430, 10, 0xe9c46a, 'fruit', 'gourd', 0x4a9a3a],
+  ['mango', 'มะม่วง', '🥭', 90, 480, 11, 0xf5a623, 'fruit', 'tree', 0x2f7d32], ['grape', 'องุ่น', '🍇', 105, 540, 12, 0x6a2c91, 'fruit', 'grape', 0x3f8f3a],
+  ['apple', 'แอปเปิล', '🍎', 68, 400, 13, 0xd62828, 'fruit', 'tree', 0x3f8f3a], ['coconut', 'มะพร้าว', '🥥', 125, 600, 14, 0x7a5a3a, 'fruit', 'palm', 0x3f8f3a],
+];
+const CROPS = {};
+for (const r of CROP_ROWS.slice().sort((a, b) => a[5] - b[5])) CROPS[r[0]] = { n: r[1], i: r[2], seed: r[3], sec: r[4], sell: M(r[3]), lv: r[5], col: r[6], k: r[7], sh: r[8], lf: r[9] };
 // an animal eats `bags` feed bags per round and gives one product worth 3x that feed
 const ANIMALS = {
   chicken: { n: 'ไก่', i: '🐔', price: 16, prod: 'egg', sec: 60, bags: 1, lv: 1 },
@@ -28,12 +36,18 @@ const ANIMALS = {
   pig: { n: 'หมู', i: '🐖', price: 59, prod: 'pork', sec: 190, bags: 3, lv: 6 },
   cow: { n: 'วัว', i: '🐄', price: 88, prod: 'milk', sec: 170, bags: 3, lv: 8 },
 };
-const FISH = {
-  tilapia: { n: 'ปลานิล', i: '🐟', price: 5, sec: 100, sell: M(5), lv: 1 },
-  carp: { n: 'ปลาคาร์ป', i: '🐠', price: 11, sec: 160, sell: M(11), lv: 3 },
-  catfish: { n: 'ปลาดุก', i: '🐡', price: 19, sec: 220, sell: M(19), lv: 5 },
-  shrimp: { n: 'กุ้งก้ามกราม', i: '🦐', price: 29, sec: 320, sell: M(29), lv: 8 },
-};
+// fish and seafood: id, name, icon, fry price, seconds to grow, level, colour, body (fish / eel / crab / shell / squid / frog / shrimp). Sale price is 3x the fry price.
+const FISH_ROWS = [
+  ['tilapia', 'ปลานิล', '🐟', 5, 100, 1, 0xf0a24a, 'fish'], ['carp', 'ปลาคาร์ป', '🐠', 11, 160, 3, 0xe0443a, 'fish'], ['catfish', 'ปลาดุก', '🐡', 19, 220, 5, 0x6d5c4c, 'fish'], ['shrimp', 'กุ้งก้ามกราม', '🦐', 29, 320, 8, 0xf08a6a, 'shrimp'],
+  ['barb', 'ปลาตะเพียน', '🐟', 8, 110, 2, 0xc9d0d6, 'fish'], ['pangas', 'ปลาสวาย', '🐟', 10, 130, 2, 0x9aa3ab, 'fish'], ['goldfish', 'ปลาทอง', '🐠', 13, 150, 3, 0xffa51f, 'fish'],
+  ['snakehead', 'ปลาช่อน', '🐟', 16, 170, 4, 0x6b5b3e, 'fish'], ['gourami', 'ปลาสลิด', '🐟', 19, 185, 4, 0xb7b27a, 'fish'], ['climbing', 'ปลาหมอ', '🐟', 22, 200, 5, 0x7d6b48, 'fish'],
+  ['frog', 'กบนา', '🐸', 25, 215, 5, 0x5aa63f, 'frog'], ['eel', 'ปลาไหลนา', '🐍', 27, 225, 6, 0x4a4f3a, 'eel'], ['crab', 'ปูนา', '🦀', 31, 250, 6, 0xc0503a, 'crab'],
+  ['cockle', 'หอยแครง', '🐚', 34, 260, 7, 0xd9cbb0, 'shell'], ['seabass', 'ปลากะพงขาว', '🐟', 40, 290, 7, 0xc7ccd1, 'fish'], ['ruby', 'ปลาทับทิม', '🐠', 44, 300, 8, 0xff5a4f, 'fish'],
+  ['trout', 'ปลาเทราต์', '🐟', 52, 330, 9, 0x8fb7c7, 'fish'], ['squid', 'ปลาหมึก', '🦑', 60, 360, 10, 0xe8b0b8, 'squid'], ['featherback', 'ปลากราย', '🐟', 66, 380, 10, 0x9a9a8a, 'fish'],
+  ['lobster', 'กุ้งมังกร', '🦞', 85, 430, 11, 0xd84a32, 'shrimp'], ['salmon', 'ปลาแซลมอน', '🐟', 95, 450, 12, 0xff8f7a, 'fish'], ['oyster', 'หอยนางรม', '🦪', 110, 500, 14, 0xb9b3a6, 'shell'],
+];
+const FISH = {};
+for (const r of FISH_ROWS.slice().sort((a, b) => a[5] - b[5])) FISH[r[0]] = { n: r[1], i: r[2], price: r[3], sec: r[4], sell: M(r[3]), lv: r[5], col: r[6], body: r[7] };
 // every sellable thing: n name, i icon, base price
 const ITEMS = {};
 for (const k in CROPS) ITEMS[k] = { n: CROPS[k].n, i: CROPS[k].i, base: CROPS[k].sell };
@@ -50,7 +64,7 @@ const RECIPES = [
 // a processed good is worth its ingredients plus ~8 %
 const PROC = { soup: ['🥫', 'ซุปมะเขือเทศ'], jam: ['🍯', 'แยมสตรอว์เบอร์รี'], popcorn: ['🍿', 'ป๊อปคอร์น'], pie: ['🥧', 'พายฟักทอง'], cheese: ['🧀', 'ชีส'], cake: ['🍰', 'เค้กไข่'], fishball: ['🍢', 'ลูกชิ้นปลา'] };
 for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], base: Math.round(Object.keys(r.in).reduce((t, k) => t + ITEMS[k].base * r.in[k], 0) * 1.08 * 10) / 10 };
-const PLOTS = [6, 8, 12, 16], PENS = [3, 5, 7, 9, 12], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
+const PLOTS = [8, 10, 12, 14, 16], PENS = [3, 5, 7, 9, 12], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
 const DECOS = [
   { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 53 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 107 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 320 },
   { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 800 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 1600 },
@@ -61,8 +75,8 @@ const DAY = 300; // seconds of play per farm day
 const API = (window.FARM2_API || '').replace(/\/$/, '');
 let S = null, slot = 0, online = false;
 let DEV = (() => { try { let d = localStorage.getItem('raisukjai2-dev'); if (!d) { d = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('raisukjai2-dev', d); } return d; } catch (e) { return 'p' + Math.random().toString(36).slice(2, 12); } })();
-const fresh = name => ({ v: 1, name: name || 'ชาวไร่', money: 300, xp: 0, lvl: 1, t: 0, last: Date.now(), tip: 0, sel: 'carrot', px: 0, pz: 10.5, plots: Array.from({ length: PLOTS[0] }, () => ({ c: null, p: 0, w: 0 })),
-  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, deco: {}, job: null, stats: { earned: 0 } });
+const fresh = name => ({ v: 1, name: name || 'ชาวไร่', money: 300, xp: 0, lvl: 1, t: 0, last: Date.now(), tip: 0, sel: 'carrot', px: 0, pz: 10.5, plots: Array.from({ length: PLOTS[0] }, () => ({ c: null, p: 0, w: 0, f: 0 })),
+  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 2, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, deco: {}, job: null, stats: { earned: 0 } });
 // A save lives in the browser twice (localStorage + IndexedDB) so one being wiped does not lose the farm. The key no longer depends on the
 // player code; the old key (with the code) is still read so earlier saves keep working. The server copy uses the player code.
 const LKEY = n => `raisukjai2-slot${n}`, LKEY_OLD = n => `raisukjai2-${DEV}-s${n}`, sid = n => `${DEV}_${n}`;
@@ -107,6 +121,33 @@ const factor = (id, d) => 0.985 + (hash(id + ':' + d) % 1000) / 1000 * 0.05;    
 const bonus = () => 1 + [0, 0.04, 0.08][S.u.truck] + prestige() / 100;
 const price = id => Math.round(ITEMS[id].base * factor(id, day()) * bonus() * 10) / 10;
 const trend = id => factor(id, day()) - factor(id, day() - 1);
+// ---------------- shop: seed stock, supplies, bulk discounts, daily deals ----------------
+const SUPPLY = {   // things that are not seeds: base price per unit, what each does
+  feed: { n: 'อาหารสัตว์', i: '🌾', price: FEED_PRICE, d: 'อาหารธรรมดา สัตว์กิน 1-3 ถุงต่อรอบผลิต' },
+  feed2: { n: 'อาหารเร่งผลผลิต', i: '⚡', price: FEED_PRICE * 3, d: 'สัตว์ที่ได้กินจะผลิตเร็วขึ้น 30% (ใช้ก่อนอาหารธรรมดา)', lv: 3 },
+  fert: { n: 'ปุ๋ย', i: '🧪', price: 4, d: 'ใส่ตอนปลูก ผักโตเร็วขึ้น 35% (ใช้ร่วมกับการรดน้ำได้)', lv: 2 },
+};
+const bulkF = n => (n >= 20 ? 0.9 : n >= 5 ? 0.95 : 1);
+const dealOf = d => {   // three deals a farm day: two seeds and one supply, the same for everyone on that day
+  const h = hash('deal' + d), ids = Object.keys(CROPS), a = ids[h % ids.length]; let b = ids[(h >> 7) % ids.length]; if (b === a) b = ids[(ids.indexOf(a) + 7) % ids.length];
+  return [{ t: 'seed', id: a, off: 0.25 }, { t: 'seed', id: b, off: 0.15 }, { t: ['feed', 'feed2', 'fert'][(h >> 13) % 3], id: ['feed', 'feed2', 'fert'][(h >> 13) % 3], off: 0.2 }];
+};
+const dealFor = (t, id) => (dealOf(day()).find(x => x.t === t && x.id === id) || { off: 0 }).off;
+const seedUnit = id => Math.max(1, Math.round(CROPS[id].seed * (1 - dealFor('seed', id))));
+const supplyUnit = k => Math.max(1, Math.round(SUPPLY[k].price * (1 - dealFor(k, k))));
+const seedCost = (id, n) => Math.max(1, Math.round(seedUnit(id) * n * bulkF(n)));
+const supplyCost = (k, n) => Math.max(1, Math.round(supplyUnit(k) * n * bulkF(n)));
+function buySeeds(id, n) { const c = CROPS[id]; if (c.lv > S.lvl) { toast(`ต้องเลเวล ${c.lv}`); return; } const have = S.seeds[id] || 0; n = Math.min(n, 99 - have); if (n <= 0) { toast('เมล็ดพันธุ์ชนิดนี้เต็มคลังแล้ว (99)'); return; } if (!spend(seedCost(id, n))) return; S.seeds[id] = have + n; sfx(540); }
+function buySupply(k, n) { if (SUPPLY[k].lv && S.lvl < SUPPLY[k].lv) { toast(`ต้องเลเวล ${SUPPLY[k].lv}`); return; } if (!spend(supplyCost(k, n))) return; S[k] = (S[k] || 0) + n; sfx(500); }
+const canPlant = id => (S.seeds[id] || 0) > 0 || S.money >= seedUnit(id);
+// the market ledger: today's takings and the last few days
+function ledAdd(g, n) {
+  const d = day(); if (!S.led || S.led.d !== d) { if (S.led && S.led.v > 0) { S.hist.unshift({ d: S.led.d, v: S.led.v }); S.hist.length = Math.min(S.hist.length, 6); } S.led = { d, v: 0, n: 0 }; }
+  S.led.v += g; S.led.n += n;
+}
+const catOf = id => (CROPS[id] ? (CROPS[id].k === 'fruit' ? 'ผลไม้' : 'ผัก') : FISH[id] ? 'ปลาและอาหารทะเล' : RECIPES.some(r => r.id === id) ? 'แปรรูป' : 'ผลผลิตสัตว์');
+const CATS = [['ผัก', '🥕'], ['ผลไม้', '🍎'], ['ผลผลิตสัตว์', '🥚'], ['ปลาและอาหารทะเล', '🐟'], ['แปรรูป', '🥫']];
+const isGood = id => factor(id, day()) >= 1.005;
 function toast(t) { const d = document.createElement('div'); d.className = 't'; d.textContent = t; $('toast').appendChild(d); while ($('toast').children.length > 3) $('toast').firstChild.remove(); setTimeout(() => d.classList.add('out'), 2200); setTimeout(() => d.remove(), 2700); }
 function gainXp(n) { S.xp += n; while (S.xp >= xpNeed(S.lvl)) { S.xp -= xpNeed(S.lvl); S.lvl++; const un = [].concat(Object.values(CROPS).filter(c => c.lv === S.lvl).map(c => c.n), Object.values(ANIMALS).filter(a => a.lv === S.lvl).map(a => a.n), Object.values(FISH).filter(f => f.lv === S.lvl).map(f => f.n)); toast(`🎉 เลเวล ${S.lvl}!` + (un.length ? ' ปลดล็อก ' + un.join(' · ') : '')); } }
 function spend(n) { if (S.money < n) { toast('เงินไม่พอ'); return false; } S.money -= n; return true; }
@@ -116,17 +157,17 @@ function addItem(id, n) { const k = Math.min(n, room()); if (k <= 0) { toast('�
 function update(dt) {
   S.t += dt;
   const sp = S.u.sprinkler ? 1.5 : 1;
-  for (const p of S.plots) if (p.c) { if (S.u.sprinkler) p.w = 1; p.p = Math.min(CROPS[p.c].sec, p.p + dt * (p.w ? 1.5 : 1)); }
+  for (const p of S.plots) if (p.c) { if (S.u.sprinkler) p.w = 1; p.p = Math.min(CROPS[p.c].sec, p.p + dt * (p.w ? 1.5 : 1) * (p.f ? 1.35 : 1)); }
   for (const a of S.pen) {
     let left = dt;
     while (left > 0 && a.st !== 'ready') {
       if (a.st === 'idle') {
         const bg = ANIMALS[a.a].bags || 1;
-        if (S.feed < bg && S.u.feeder && S.money >= FEED_PRICE * 5) { S.money -= FEED_PRICE * 5; S.feed += 5; }
-        if (S.feed >= bg) { S.feed -= bg; a.st = 'prod'; a.t = 0; } else break;
+        if ((S.feed2 || 0) < bg && S.feed < bg && S.u.feeder && S.money >= FEED_PRICE * 5) { S.money -= FEED_PRICE * 5; S.feed += 5; }
+        if ((S.feed2 || 0) >= bg) { S.feed2 -= bg; a.st = 'prod'; a.t = 0; a.pf = 1; } else if (S.feed >= bg) { S.feed -= bg; a.st = 'prod'; a.t = 0; a.pf = 0; } else break;
       }
-      const need = ANIMALS[a.a].sec - a.t;
-      if (left >= need) { left -= need; a.st = 'ready'; a.t = ANIMALS[a.a].sec; } else { a.t += left; left = 0; }
+      const secN = ANIMALS[a.a].sec * (a.pf ? 0.7 : 1), need = secN - a.t;
+      if (left >= need) { left -= need; a.st = 'ready'; a.t = secN; } else { a.t += left; left = 0; }
     }
   }
   for (const f of S.pond) if (f.f) f.p = Math.min(FISH[f.f].sec, f.p + dt);
@@ -143,21 +184,21 @@ function readyCount() { return S.plots.filter(cropReady).length + S.pen.filter(a
 function plant(i) {
   const p = S.plots[i], c = CROPS[S.sel]; if (!p || p.c) return;
   if (c.lv > S.lvl) { toast(`ต้องเลเวล ${c.lv} ถึงปลูก${c.n}ได้`); return; }
-  if (!spend(c.seed)) return;
-  p.c = S.sel; p.p = 0; p.w = S.u.sprinkler ? 1 : 0; sfx(520);
+  if ((S.seeds[S.sel] || 0) > 0) S.seeds[S.sel]--; else if (!spend(seedUnit(S.sel))) return;
+  p.c = S.sel; p.p = 0; p.w = S.u.sprinkler ? 1 : 0; p.f = 0; if (S.autoFert && (S.fert || 0) > 0) { S.fert--; p.f = 1; } sfx(520);
 }
 function harvestPlot(i) {
   const p = S.plots[i]; if (!cropReady(p)) return false;
-  if (!addItem(p.c, 1)) return false; gainXp(Math.max(2, Math.round(CROPS[p.c].sell * XPF / 4))); p.c = null; p.p = 0; p.w = 0; sfx(700); return true;
+  if (!addItem(p.c, 1)) return false; gainXp(Math.max(2, Math.round(CROPS[p.c].sell * XPF / 4))); p.c = null; p.p = 0; p.w = 0; p.f = 0; sfx(700); return true;
 }
 function collectAnimal(i) { const a = S.pen[i]; if (a.st !== 'ready') return false; const pr = ANIMALS[a.a].prod; if (!addItem(pr, 1)) return false; gainXp(Math.max(2, Math.round(ITEMS[pr].base * XPF / 6))); a.st = 'idle'; a.t = 0; sfx(640); return true; }
 function harvestFish(i) { const f = S.pond[i]; if (!fishReady(f)) return false; if (!addItem(f.f, 1)) return false; gainXp(Math.max(2, Math.round(FISH[f.f].sell * XPF / 4))); S.pond.splice(i, 1); sfx(600); return true; }
-function sell(id, n) { n = Math.min(n, S.inv[id] || 0); if (n <= 0) return 0; const g = Math.round(price(id) * n); S.inv[id] -= n; if (!S.inv[id]) delete S.inv[id]; S.money += g; S.stats.earned += g; gainXp(Math.ceil(g * XPF / 40)); sfx(880); return g; }
+function sell(id, n) { n = Math.min(n, S.inv[id] || 0); if (n <= 0) return 0; const g = Math.round(price(id) * n); S.inv[id] -= n; if (!S.inv[id]) delete S.inv[id]; S.money += g; S.stats.earned += g; ledAdd(g, n); gainXp(Math.ceil(g * XPF / 40)); sfx(880); return g; }
 function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext || window.webkitAudioContext)()), o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.type = 'sine'; g.gain.value = 0.05; o.connect(g); g.connect(A.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001, A.currentTime + 0.14); o.stop(A.currentTime + 0.15); } catch (e) { } }
 
 // upgrades: the 10 things money is for (1-4 are the core buys: seeds, animals, fish, feed)
 const UPS = [
-  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 3, cost: [80, 240, 587], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
+  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 4, cost: [80, 160, 320, 600], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
   { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [107, 320, 800, 1867], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
   { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [93, 267, 693, 1600], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
   { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [53, 160, 427, 1067], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
@@ -182,23 +223,86 @@ const A = {};
 function openTab(t) { tab = t; $('sheet').hidden = false; document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === t)); render(); }
 function closeSheet() { tab = null; $('sheet').hidden = true; document.querySelectorAll('#nav button').forEach(b => b.classList.remove('on')); }
 const lock = lv => (lv > S.lvl ? ' lock' : '');
+// ---------------- seed list, market (sell / buy / price board) ----------------
+let farmF = 'all', shopF = 'all', mktTab = 'sell';
+const NOTE = 'style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim);line-height:1.45"';
+const growT = sec => (sec >= 60 ? Math.round(sec / 60 * 10) / 10 + ' นาที' : sec + ' วิ');
+const chip = (act, v, label, on) => `<button class="btn${on ? '' : ' ghost'}" style="flex:1;min-width:0;padding:7px 6px;font-size:13px" data-a="${act}" data-v="${v}">${label}</button>`;
+const cropList = f => Object.keys(CROPS).filter(k => f === 'veg' ? CROPS[k].k === 'veg' : f === 'fruit' ? CROPS[k].k === 'fruit' : f === 'stock' ? (S.seeds[k] || 0) > 0 : true).sort((a, b) => (CROPS[a].lv > S.lvl) - (CROPS[b].lv > S.lvl));
+const FILT = [['all', 'ทั้งหมด'], ['veg', '🥕 ผัก'], ['fruit', '🍎 ผลไม้'], ['stock', '🎒 มีในคลัง']];
+function farmHTML() {
+  const empty = S.plots.filter(p => !p.c).length, rd = S.plots.filter(cropReady).length, list = cropList(farmF);
+  let h = `<div class="row"><button class="btn" data-a="plantall" ${empty && canPlant(S.sel) ? '' : 'disabled'}>ปลูกทั้งหมด (${empty} แปลงว่าง)</button><button class="btn ghost" data-a="harvall" ${rd ? '' : 'disabled'}>เก็บเกี่ยวทั้งหมด (${rd})</button></div>
+  <div class="row"><button class="btn ghost" data-a="autofert">🧪 ใส่ปุ๋ยตอนปลูก: ${S.autoFert ? 'เปิด' : 'ปิด'} · มี ${S.fert || 0} กระสอบ</button><button class="btn ghost" data-a="tab" data-v="market" data-m="buy">🛒 ซื้อเมล็ด/ปุ๋ย</button></div>
+  <p ${NOTE}>เลือกเมล็ดพันธุ์ แล้วแตะแปลงเพื่อปลูก (แตะแปลงที่กำลังโตเพื่อรดน้ำ) · เมล็ดที่ซื้อเก็บไว้ในคลังปลูกได้ฟรี ถ้าไม่มีจะหักเงินตอนปลูก</p><div class="row">${FILT.map(([k, t]) => chip('farmf', k, t, farmF === k)).join('')}</div>`;
+  h += list.map(k => {
+    const c = CROPS[k], sel = S.sel === k, st = S.seeds[k] || 0, off = dealFor('seed', k), u = seedUnit(k);
+    return `<div class="card${lock(c.lv)}"><div class="ci">${c.i}</div><div><h4>${c.n}${sel ? '<span class="pill">เลือกอยู่</span>' : ''}${st ? `<span class="pill">🎒 ×${st}</span>` : ''}</h4><p>เมล็ด ${u} ฿${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · โต ${growT(c.sec)} · ขาย ~${price(k)} ฿ <span class="${trend(k) >= 0 ? 'up' : 'down'}">${trend(k) >= 0 ? '▲' : '▼'}</span></p></div>${c.lv > S.lvl ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<button class="btn${sel ? ' ghost' : ''}" data-a="sel" data-v="${k}">${sel ? '✓' : 'เลือก'}</button>`}</div>`;
+  }).join('') || '<p style="color:var(--ink-dim)">ยังไม่มีเมล็ดในคลัง ซื้อได้ที่ 🏪 ตลาด แท็บ 🛒 ซื้อ</p>';
+  return h;
+}
+function sellHTML() {
+  const ids = Object.keys(S.inv).filter(k => S.inv[k] > 0), val = ids.reduce((a, k) => a + price(k) * S.inv[k], 0), goodIds = ids.filter(isGood), goodVal = goodIds.reduce((a, k) => a + price(k) * S.inv[k], 0);
+  const led = S.led && S.led.d === day() ? S.led : { v: 0, n: 0 };
+  let h = `<p ${NOTE}>ราคาเปลี่ยนทุกวันของฟาร์ม (วันที่ ${day()}) · โบนัสรถกระบะ/ชื่อเสียง ${Math.round((bonus() - 1) * 1000) / 10}% · ยุ้งฉาง ${used()}/${cap()}</p>
+  <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">📊</div><div><h4>วันนี้ขายได้ ${fmt(led.v)} ฿ <span class="pill">${led.n} ชิ้น</span></h4><p>${S.hist.length ? 'ย้อนหลัง: ' + S.hist.slice(0, 4).map(x => `วันที่ ${x.d} · ${fmt(x.v)} ฿`).join(' | ') : 'ยังไม่มีประวัติย้อนหลัง'}<br>ขายไปทั้งหมด ${fmt(S.stats.earned)} ฿</p></div></div>
+  <div class="row"><button class="btn" data-a="sellall" ${ids.length ? '' : 'disabled'}>ขายทั้งหมด ≈ ${fmt(val)} ฿</button><button class="btn ghost" data-a="sellgood" ${goodIds.length ? '' : 'disabled'}>🔥 ขายเฉพาะราคาดี ≈ ${fmt(goodVal)} ฿</button></div>`;
+  if (!ids.length) return h + '<p style="color:var(--ink-dim)">ยุ้งฉางว่าง ไปเก็บเกี่ยวผลผลิตก่อนนะ</p>';
+  for (const [cat, ic] of CATS) {
+    const items = ids.filter(k => catOf(k) === cat); if (!items.length) continue;
+    const sub = items.reduce((a, k) => a + price(k) * S.inv[k], 0), n = items.reduce((a, k) => a + S.inv[k], 0);
+    h += `<h5>${ic} ${cat} · ${n} ชิ้น ≈ ${fmt(sub)} ฿</h5><div class="row"><button class="btn ghost" data-a="sellcat" data-v="${cat}">ขายทั้งหมวด ${cat}</button></div>`;
+    h += items.map(k => {
+      const it = ITEMS[k], f = factor(k, day()), pc = Math.round((f - 1) * 100), tag = f >= 1.012 ? '<b class="up">🔥 ราคาดี</b>' : f < 0.995 ? '<b class="down">⏳ ราคาต่ำ</b>' : 'ราคาปกติ', t = trend(k);
+      return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tag} <span class="${t >= 0 ? 'up' : 'down'}">${t >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(t * 100))}%</span><br>รวม ≈ ${fmt(price(k) * S.inv[k])} ฿</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 10 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="10">ขาย 10</button>` : ''}${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`;
+    }).join('');
+  }
+  return h;
+}
+function shopHTML() {
+  const deals = dealOf(day()), list = cropList(shopF);
+  let h = `<p ${NOTE}>ซื้อเมล็ดและของใช้เก็บไว้ในคลังได้ · ซื้อ ×5 ลด 5% · ×20 ขึ้นไปลด 10% · โปรโมชั่นเปลี่ยนทุกวันของฟาร์ม</p><h5>🔥 โปรวันนี้ (วันที่ ${day()})</h5>`;
+  h += deals.map(d => {
+    if (d.t === 'seed') { const c = CROPS[d.id], lk = c.lv > S.lvl; return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${c.i}</div><div><h4>เมล็ด${c.n} <span class="pill">−${Math.round(d.off * 100)}%</span></h4><p>${seedUnit(d.id)} ฿/ถุง (ปกติ ${c.seed}) · มีในคลัง ${S.seeds[d.id] || 0}</p></div>${lk ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<button class="btn" data-a="buyseed" data-v="${d.id}" data-n="5" ${S.money >= seedCost(d.id, 5) ? '' : 'disabled'}>×5 · ${fmt(seedCost(d.id, 5))} ฿</button>`}</div>`; }
+    const s = SUPPLY[d.id], lk = s.lv && s.lv > S.lvl; return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${s.i}</div><div><h4>${s.n} <span class="pill">−${Math.round(d.off * 100)}%</span></h4><p>${supplyUnit(d.id)} ฿ (ปกติ ${s.price}) · มีในคลัง ${S[d.id] || 0}</p></div>${lk ? `<span class="pill">🔒 Lv.${s.lv}</span>` : `<button class="btn" data-a="buysup" data-v="${d.id}" data-n="10" ${S.money >= supplyCost(d.id, 10) ? '' : 'disabled'}>×10 · ${fmt(supplyCost(d.id, 10))} ฿</button>`}</div>`;
+  }).join('');
+  h += '<h5>🧰 ของใช้ในฟาร์ม</h5>' + Object.keys(SUPPLY).map(k => {
+    const s = SUPPLY[k], lk = s.lv && s.lv > S.lvl, off = dealFor(k, k);
+    return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${s.i}</div><div><h4>${s.n}<span class="pill">มี ${S[k] || 0}</span></h4><p>${supplyUnit(k)} ฿/ชิ้น${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · ${s.d}</p></div>${lk ? `<span class="pill">🔒 Lv.${s.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buysup" data-v="${k}" data-n="10" ${S.money >= supplyCost(k, 10) ? '' : 'disabled'}>×10 · ${fmt(supplyCost(k, 10))} ฿</button><button class="btn ghost" data-a="buysup" data-v="${k}" data-n="50" ${S.money >= supplyCost(k, 50) ? '' : 'disabled'}>×50 · ${fmt(supplyCost(k, 50))} ฿</button></div>`}</div>`;
+  }).join('');
+  h += `<h5>🌱 เมล็ดพันธุ์ ${Object.keys(CROPS).length} ชนิด</h5><div class="row">${FILT.map(([k, t]) => chip('shopf', k, t, shopF === k)).join('')}</div>`;
+  h += list.map(k => {
+    const c = CROPS[k], lk = c.lv > S.lvl, off = dealFor('seed', k), st = S.seeds[k] || 0;
+    return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${c.i}</div><div><h4>${c.n}${st ? `<span class="pill">🎒 ×${st}</span>` : ''}</h4><p>${seedUnit(k)} ฿/ถุง${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · โต ${growT(c.sec)} · ขาย ~${price(k)} ฿</p></div>${lk ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyseed" data-v="${k}" data-n="5" ${S.money >= seedCost(k, 5) ? '' : 'disabled'}>×5 · ${fmt(seedCost(k, 5))} ฿</button><button class="btn ghost" data-a="buyseed" data-v="${k}" data-n="20" ${S.money >= seedCost(k, 20) ? '' : 'disabled'}>×20 · ${fmt(seedCost(k, 20))} ฿</button></div>`}</div>`;
+  }).join('') || '<p style="color:var(--ink-dim)">ไม่มีรายการ</p>';
+  return h;
+}
+// price board: today's price of everything with how much a crop or fish earns per minute of growing
+function boardHTML() {
+  let h = `<p ${NOTE}>ราคารับซื้อวันนี้ของทุกอย่าง (วันที่ ${day()}) · "กำไร/นาที" = (ราคาขาย − ราคาเมล็ด/ลูกปลา) ÷ เวลาที่ใช้โต ใช้เลือกว่าปลูกอะไรคุ้ม</p>`;
+  for (const [cat, ic] of CATS) {
+    const ids = Object.keys(ITEMS).filter(k => catOf(k) === cat); if (!ids.length) continue;
+    h += `<h5>${ic} ${cat}</h5>` + ids.map(k => {
+      const it = ITEMS[k], c = CROPS[k] || FISH[k], t = trend(k), cost = c ? (c.seed || c.price) : 0, ppm = c ? Math.round((price(k) - cost) / (c.sec / 60) * 10) / 10 : 0, lk = c && c.lv > S.lvl;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--line);font-size:13.5px;${lk ? 'opacity:.55' : ''}"><span style="font-size:20px;width:26px;text-align:center">${it.i}</span><span style="flex:1;min-width:0">${it.n}${lk ? ` <small>🔒 Lv.${c.lv}</small>` : ''}${c ? `<br><small style="color:var(--ink-dim)">กำไร ~${ppm} ฿/นาที</small>` : ''}</span><b>${price(k)} ฿</b><span class="${t >= 0 ? 'up' : 'down'}" style="width:48px;text-align:right">${t >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(t * 100))}%</span></div>`;
+    }).join('');
+  }
+  return h;
+}
 function render() {
   if (!tab) return;
   const R = {
     farm() {
       $('stitle').textContent = '🌱 แปลงผัก';
-      const empty = S.plots.filter(p => !p.c).length, rd = S.plots.filter(cropReady).length;
-      return `<div class="row"><button class="btn" data-a="plantall" ${empty ? '' : 'disabled'}>ปลูกทั้งหมด (${empty} แปลงว่าง)</button><button class="btn ghost" data-a="harvall" ${rd ? '' : 'disabled'}>เก็บเกี่ยวทั้งหมด (${rd})</button></div>
-      <h5>เลือกเมล็ดพันธุ์ แล้วแตะแปลงเพื่อปลูก (แตะแปลงที่กำลังโตเพื่อรดน้ำ)</h5>` +
-        Object.keys(CROPS).map(k => { const c = CROPS[k], sel = S.sel === k; return `<div class="card${lock(c.lv)}"><div class="ci">${c.i}</div><div><h4>${c.n}${sel ? '<span class="pill">เลือกอยู่</span>' : ''}</h4><p>เมล็ด ${c.seed} ฿ · โต ${c.sec >= 60 ? Math.round(c.sec / 60 * 10) / 10 + ' นาที' : c.sec + ' วิ'} · ขาย ~${price(k)} ฿ <span class="${trend(k) >= 0 ? 'up' : 'down'}">${trend(k) >= 0 ? '▲' : '▼'}</span></p></div>${c.lv > S.lvl ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<button class="btn${sel ? ' ghost' : ''}" data-a="sel" data-v="${k}">${sel ? '✓' : 'เลือก'}</button>`}</div>`; }).join('');
+      return farmHTML();
     },
     pen() {
       $('stitle').textContent = '🐔 สัตว์เลี้ยง';
       const rd = S.pen.filter(a => a.st === 'ready').length;
-      return `<div class="row"><button class="btn" data-a="collall" ${rd ? '' : 'disabled'}>เก็บผลผลิตทั้งหมด (${rd})</button><button class="btn ghost" data-a="feed">ซื้ออาหาร ×10 (${FEED_PRICE * 10} ฿)</button></div>
-      <p class="dim" style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">🌾 อาหารสัตว์ในคลัง ${S.feed} ถุง · สัตว์แต่ละตัวใช้อาหาร 1–3 ถุงต่อรอบผลิต ${S.u.feeder ? '· เครื่องให้อาหารอัตโนมัติทำงานอยู่' : ''}</p>
+      return `<div class="row"><button class="btn" data-a="collall" ${rd ? '' : 'disabled'}>เก็บผลผลิตทั้งหมด (${rd})</button><button class="btn ghost" data-a="feed">ซื้ออาหาร ×10 (${supplyCost('feed', 10)} ฿)</button><button class="btn ghost" data-a="buysup" data-v="feed2" data-n="10" ${S.lvl >= SUPPLY.feed2.lv ? '' : 'disabled'}>⚡ อาหารเร่ง ×10 (${supplyCost('feed2', 10)} ฿)</button></div>
+      <p class="dim" style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">🌾 อาหารสัตว์ในคลัง ${S.feed} ถุง · ⚡ อาหารเร่ง ${S.feed2 || 0} ถุง (ผลิตเร็วขึ้น 30%) · สัตว์แต่ละตัวใช้อาหาร 1–3 ถุงต่อรอบผลิต ${S.u.feeder ? '· เครื่องให้อาหารอัตโนมัติทำงานอยู่' : ''}</p>
       <h5>สัตว์ในคอก ${S.pen.length}/${PENS[S.u.pen]}</h5>` +
-        (S.pen.map((a, i) => { const d = ANIMALS[a.a]; const st = a.st === 'ready' ? `<b class="up">พร้อมเก็บ ${ITEMS[d.prod].i}</b>` : a.st === 'idle' ? '<b class="down">หิว! ไม่มีอาหาร</b>' : `กำลังผลิต ${Math.max(0, Math.ceil(d.sec - a.t))} วิ`; return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${st} · ให้ ${ITEMS[d.prod].n} ~${price(d.prod)} ฿</p></div>${a.st === 'ready' ? `<button class="btn" data-a="coll" data-v="${i}">เก็บ</button>` : `<button class="btn ghost" data-a="sellan" data-v="${i}">ขายสัตว์</button>`}</div>`; }).join('') || '<p>ยังไม่มีสัตว์</p>') +
+        (S.pen.map((a, i) => { const d = ANIMALS[a.a]; const st = a.st === 'ready' ? `<b class="up">พร้อมเก็บ ${ITEMS[d.prod].i}</b>` : a.st === 'idle' ? '<b class="down">หิว! ไม่มีอาหาร</b>' : `${a.pf ? '⚡ ' : ''}กำลังผลิต ${Math.max(0, Math.ceil(d.sec * (a.pf ? 0.7 : 1) - a.t))} วิ`; return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${st} · ให้ ${ITEMS[d.prod].n} ~${price(d.prod)} ฿</p></div>${a.st === 'ready' ? `<button class="btn" data-a="coll" data-v="${i}">เก็บ</button>` : `<button class="btn ghost" data-a="sellan" data-v="${i}">ขายสัตว์</button>`}</div>`; }).join('') || '<p>ยังไม่มีสัตว์</p>') +
         `<h5>ซื้อสัตว์ใหม่</h5>` + Object.keys(ANIMALS).map(k => { const d = ANIMALS[k]; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<button class="btn" data-a="buyan" data-v="${k}">ซื้อ</button>`}</div>`; }).join('');
     },
     pond() {
@@ -210,10 +314,8 @@ function render() {
     },
     market() {
       $('stitle').textContent = '🏪 ตลาด';
-      const ids = Object.keys(S.inv).filter(k => S.inv[k] > 0), tot = ids.reduce((a, k) => a + price(k) * S.inv[k], 0);
-      return `<p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">ราคาเปลี่ยนทุกวันของฟาร์ม (วันที่ ${day()}) · โบนัสรถกระบะ/ชื่อเสียง ${Math.round((bonus() - 1) * 1000) / 10}% · ยุ้งฉาง ${used()}/${cap()}</p>
-      <div class="row"><button class="btn" data-a="sellall" ${ids.length ? '' : 'disabled'}>ขายทั้งหมด ≈ ${fmt(tot)} ฿</button></div>` +
-        (ids.map(k => { const it = ITEMS[k], t = trend(k); return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น <span class="${t >= 0 ? 'up' : 'down'}">${t >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(t * 100))}%</span></p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`; }).join('') || '<p style="color:var(--ink-dim)">ยุ้งฉางว่าง ไปเก็บเกี่ยวผลผลิตก่อนนะ</p>');
+      const tabs = [['sell', '💰 ขาย'], ['buy', '🛒 ซื้อ'], ['board', '📈 ราคา']].map(([k, t]) => chip('mkt', k, t, mktTab === k)).join('');
+      return `<div class="row">${tabs}</div>` + (mktTab === 'buy' ? shopHTML() : mktTab === 'board' ? boardHTML() : sellHTML());
     },
     up() {
       $('stitle').textContent = '⭐ เอาเงินไปทำอะไรดี';
@@ -239,7 +341,7 @@ function render() {
       let h = `<p ${note}>ยุ้งฉางคือคลังของฟาร์ม ผักที่เก็บเกี่ยว ไข่ นม ปลา และของแปรรูปจะเข้ามาพักที่นี่ก่อนนำไปขาย ถ้าเต็มจะเก็บเกี่ยวเพิ่มไม่ได้ ราคาตลาดขึ้นลงทุกวัน เก็บไว้รอขายวันที่ราคาดีได้ อาหารสัตว์ก็เก็บที่นี่</p>
       <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">🏚️</div><div><h4>ความจุ ${u}/${c} ชิ้น <span class="pill">ระดับ ${lvl + 1}</span></h4><div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, pct)}%;background:${col}"></i></div><p>${pct >= 90 ? '⚠️ เกือบเต็มแล้ว รีบขายหรืออัปเกรด' : pct >= 70 ? 'เริ่มแน่นแล้ว' : 'ยังมีที่ว่าง'} · ของในยุ้งมูลค่า ≈ ${fmt(val)} ฿</p></div></div>`;
       h += lvl < upc.max ? `<div class="card"><div class="ci">📦</div><div><h4>ขยายยุ้งฉาง</h4><p>${BARNS[lvl]} → ${BARNS[lvl + 1]} ชิ้น</p></div><button class="btn" data-a="up" data-v="barn" ${S.money >= upc.cost[lvl] ? '' : 'disabled'}>${fmt(upc.cost[lvl])} ฿</button></div>` : `<div class="card" style="grid-template-columns:46px 1fr"><div class="ci">📦</div><div><h4>ยุ้งฉางใหญ่สุดแล้ว</h4><p>เก็บของได้ ${c} ชิ้น</p></div></div>`;
-      h += `<h5>🌾 อาหารสัตว์ในยุ้ง</h5><div class="card"><div class="ci">🌾</div><div><h4>${S.feed} ถุง</h4><p>${S.pen.length ? `สัตว์ใช้ ${perRound} ถุงต่อรอบ · พอสำหรับ ≈ ${rounds} รอบ${S.u.feeder ? ' · เครื่องให้อาหารเติมให้เอง' : ''}` : 'ยังไม่มีสัตว์ในคอก'}</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="feed" ${S.money >= FEED_PRICE * 10 ? '' : 'disabled'}>×10 · ${FEED_PRICE * 10} ฿</button><button class="btn ghost" data-a="feed50" ${S.money >= FEED_PRICE * 50 ? '' : 'disabled'}>×50 · ${FEED_PRICE * 50} ฿</button></div></div>`;
+      h += `<h5>🌾 อาหารสัตว์และของใช้ในยุ้ง</h5><p ${note}>⚡ อาหารเร่ง ${S.feed2 || 0} ถุง · 🧪 ปุ๋ย ${S.fert || 0} กระสอบ · 🎒 เมล็ดพันธุ์ ${Object.values(S.seeds || {}).reduce((a, b) => a + b, 0)} ถุง (ซื้อเพิ่มที่ตลาด)</p><div class="card"><div class="ci">🌾</div><div><h4>${S.feed} ถุง</h4><p>${S.pen.length ? `สัตว์ใช้ ${perRound} ถุงต่อรอบ · พอสำหรับ ≈ ${rounds} รอบ${S.u.feeder ? ' · เครื่องให้อาหารเติมให้เอง' : ''}` : 'ยังไม่มีสัตว์ในคอก'}</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="feed" ${S.money >= supplyCost('feed', 10) ? '' : 'disabled'}>×10 · ${supplyCost('feed', 10)} ฿</button><button class="btn ghost" data-a="feed50" ${S.money >= supplyCost('feed', 50) ? '' : 'disabled'}>×50 · ${supplyCost('feed', 50)} ฿</button></div></div>`;
       h += `<h5>📦 ผลผลิตในยุ้ง</h5>`;
       if (ids.length) {
         h += `<div class="row"><button class="btn" data-a="sellall">ขายทั้งหมด ≈ ${fmt(val)} ฿</button><button class="btn ghost" data-a="tab" data-v="market">🏪 ไปตลาด</button></div>`;
@@ -253,12 +355,15 @@ function render() {
   const html = R[tab](); const b = $('sbody'), st = b.scrollTop; b.innerHTML = html; b.scrollTop = st;
 }
 Object.assign(A, {
-  tab: d => openTab(d.v), close: closeSheet, tipok: () => { $('tip').hidden = true; if (S) { S.tip = 1; save(); } },
+  tab: d => { if (d.m) mktTab = d.m; openTab(d.v); }, close: closeSheet, tipok: () => { $('tip').hidden = true; if (S) { S.tip = 1; save(); } },
   sel: d => { S.sel = d.v; toast(`เลือก ${CROPS[d.v].n} แตะแปลงว่างเพื่อปลูก`); },
-  plantall: () => { let n = 0; S.plots.forEach((p, i) => { if (!p.c && S.money >= CROPS[S.sel].seed && CROPS[S.sel].lv <= S.lvl) { plant(i); n++; } }); if (!n) toast('ปลูกไม่ได้ (เงินไม่พอหรือยังไม่ปลดล็อก)'); },
+  plantall: () => { let n = 0; S.plots.forEach((p, i) => { if (!p.c && canPlant(S.sel) && CROPS[S.sel].lv <= S.lvl) { plant(i); n++; } }); if (!n) toast('ปลูกไม่ได้ (เงินไม่พอหรือยังไม่ปลดล็อก)'); },
   harvall: () => { let n = 0; S.plots.forEach((p, i) => { if (harvestPlot(i)) n++; }); if (n) toast(`เก็บเกี่ยว ${n} แปลง`); },
-  feed: () => { if (spend(FEED_PRICE * 10)) { S.feed += 10; sfx(500); } },
-  feed50: () => { if (spend(FEED_PRICE * 50)) { S.feed += 50; sfx(500); } },
+  feed: () => buySupply('feed', 10), feed50: () => buySupply('feed', 50),
+  buysup: d => buySupply(d.v, +d.n || 10), buyseed: d => buySeeds(d.v, +d.n || 5),
+  mkt: d => { mktTab = d.v; }, farmf: d => { farmF = d.v; }, shopf: d => { shopF = d.v; }, autofert: () => { S.autoFert = S.autoFert ? 0 : 1; },
+  sellcat: d => { let g = 0; for (const k of Object.keys(S.inv)) if (catOf(k) === d.v) g += sell(k, 1e9); if (g) toast(`ขาย${d.v} ได้ ${fmt(g)} ฿`); },
+  sellgood: () => { let g = 0; for (const k of Object.keys(S.inv)) if (isGood(k)) g += sell(k, 1e9); if (g) toast(`ขายของราคาดี ได้ ${fmt(g)} ฿`); },
   buyan: d => { const a = ANIMALS[d.v]; if (S.pen.length >= PENS[S.u.pen]) { toast('คอกเต็ม ขยายคอกที่แท็บ ⭐'); return; } if (!spend(a.price)) return; S.pen.push({ a: d.v, st: 'idle', t: 0 }); sfx(600); build3d(); },
   sellan: d => { const a = S.pen[+d.v], g = Math.round(ANIMALS[a.a].price * 0.6); S.pen.splice(+d.v, 1); S.money += g; toast(`ขายสัตว์ได้ ${fmt(g)} ฿`); build3d(); },
   coll: d => { collectAnimal(+d.v); },
@@ -266,7 +371,7 @@ Object.assign(A, {
   buyfish: d => { if (S.pond.length >= PONDS[S.u.pond]) { toast('บ่อเต็ม ขยายบ่อที่แท็บ ⭐'); return; } if (!spend(FISH[d.v].price)) return; S.pond.push({ f: d.v, p: 0 }); sfx(560); build3d(); },
   fish: d => { harvestFish(+d.v); build3d(); },
   fishall: () => { let n = 0; for (let i = S.pond.length - 1; i >= 0; i--) if (harvestFish(i)) n++; if (n) toast(`จับปลา ${n} ตัว`); build3d(); },
-  sell: d => { const g = sell(d.v, d.n === 'all' ? 1e9 : 1); if (g) toast(`ขายได้ ${fmt(g)} ฿`); },
+  sell: d => { const g = sell(d.v, d.n === 'all' ? 1e9 : (+d.n || 1)); if (g) toast(`ขายได้ ${fmt(g)} ฿`); },
   sellall: () => { let g = 0; for (const k of Object.keys(S.inv)) g += sell(k, 1e9); if (g) toast(`ขายทั้งหมด ได้ ${fmt(g)} ฿`); },
   up: d => buyUp(d.v), deco: d => buyDeco(d.v),
   dep: d => deposit(d.v === 'all' ? S.money : +d.v), wd: d => withdraw(d.v === 'all' ? S.bank : +d.v),
@@ -288,7 +393,7 @@ function hud() {
   $('money').textContent = fmt(S.money) + ' ฿'; $('lv').textContent = `${S.name} · Lv.${S.lvl}`; $('xp').style.width = (S.xp / xpNeed(S.lvl) * 100) + '%';
   const m = Math.floor(hourNow() * 60), hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
   $('day').textContent = `วันที่ ${day()} · ${hh}:${mm}`; $('barn').textContent = `🏚️ ${used()}/${cap()} ›`;
-  const c = CROPS[S.sel]; $('seedchip').textContent = `${c.i} ${c.n} ${c.seed}฿ ▾`;
+  const c = CROPS[S.sel]; $('seedchip').textContent = `${c.i} ${c.n} ${(S.seeds[S.sel] || 0) > 0 ? '🎒×' + S.seeds[S.sel] : seedUnit(S.sel) + '฿'} ▾`;
   const n = readyCount(); $('harvest').hidden = !n; $('harvest').textContent = `🧺 เก็บทั้งหมด (${n})`;
   const rd = [S.plots.filter(cropReady).length, S.pen.filter(a => a.st === 'ready').length, S.pond.filter(fishReady).length];
   document.querySelectorAll('#nav button').forEach(b => { const k = { farm: 0, pen: 1, pond: 2 }[b.dataset.v]; let i = b.querySelector('i'); if (k != null && rd[k]) { if (!i) { i = document.createElement('i'); b.appendChild(i); } i.textContent = rd[k]; } else if (i) i.remove(); });
@@ -322,9 +427,42 @@ function bubble(emoji) { const c = document.createElement('canvas'); c.width = c
 const bubbles = {};
 const bub = e => { const b = bubbles[e] || (bubbles[e] = bubble(e)); return b.clone(); };
 
+// models for the newer crops (the first seven keep their own hand-made shapes above)
+function shapedCrop(g, c) {
+  const leaf = mat(c.lf || 0x4f9a4a), col = mat(c.col), trunk = mat(0x7a5638);
+  switch (c.sh) {
+    case 'root': for (let i = 0; i < 4; i++) mk(g, cone, leaf, [Math.cos(i * 1.6) * 0.14, 0.42, Math.sin(i * 1.6) * 0.14], [0.08, 0.8, 0.08], [Math.sin(i * 1.6) * 0.5, 0, -Math.cos(i * 1.6) * 0.5]); mk(g, sph, col, [0, 0.1, 0], [0.26, 0.2, 0.26]); break;
+    case 'head': mk(g, sph, leaf, [0, 0.32, 0], [0.5, 0.4, 0.5]); mk(g, sph, col, [0, 0.45, 0], [0.4, 0.34, 0.4]); for (let i = 0; i < 5; i++) mk(g, sph, col, [Math.cos(i * 1.26) * 0.28, 0.5, Math.sin(i * 1.26) * 0.28], 0.18); break;
+    case 'herb': for (let i = 0; i < 7; i++) mk(g, sph, leaf, [Math.cos(i * 0.9) * 0.22 * (i % 2 + 1), 0.3 + (i % 3) * 0.1, Math.sin(i * 0.9) * 0.22 * (i % 2 + 1)], [0.2, 0.26, 0.2]); break;
+    case 'bush': mk(g, sph, leaf, [0, 0.45, 0], [0.5, 0.45, 0.5]); for (let i = 0; i < 6; i++) mk(g, sph, col, [Math.cos(i * 1.05) * 0.4, 0.32 + (i % 2) * 0.22, Math.sin(i * 1.05) * 0.4], [0.1, 0.2, 0.1]); break;
+    case 'vine': for (let i = 0; i < 3; i++) mk(g, cyl, col, [Math.cos(i * 2.1) * 0.35, 0.14, Math.sin(i * 2.1) * 0.35], [0.1, 0.5, 0.1], [0, 0, Math.PI / 2 + i * 0.4]); for (let i = 0; i < 4; i++) mk(g, cyl, leaf, [Math.cos(i * 1.6) * 0.3, 0.07, Math.sin(i * 1.6) * 0.3], [0.28, 0.02, 0.28]); break;
+    case 'mush': for (let i = 0; i < 4; i++) { const x = Math.cos(i * 1.6) * 0.28, z = Math.sin(i * 1.6) * 0.28, h = 0.22 + (i % 2) * 0.12; mk(g, cyl, leaf, [x, h / 2, z], [0.07, h, 0.07]); mk(g, sph, col, [x, h + 0.02, z], [0.2, 0.11, 0.2]); } break;
+    case 'tree': mk(g, cyl, trunk, [0, 0.4, 0], [0.07, 0.8, 0.07]); mk(g, sph, leaf, [0, 0.95, 0], [0.5, 0.42, 0.5]); for (let i = 0; i < 6; i++) mk(g, sph, col, [Math.cos(i * 1.05) * 0.44, 0.85 + (i % 2) * 0.22, Math.sin(i * 1.05) * 0.44], 0.1); break;
+    case 'palm': mk(g, cyl, trunk, [0, 0.65, 0], [0.07, 1.3, 0.07], [0.08, 0, 0.05]); for (let i = 0; i < 5; i++) mk(g, cone, leaf, [Math.cos(i * 1.26) * 0.3, 1.3, Math.sin(i * 1.26) * 0.3], [0.09, 0.8, 0.09], [Math.sin(i * 1.26) * 1.2, 0, -Math.cos(i * 1.26) * 1.2]); for (let i = 0; i < 4; i++) mk(g, sph, col, [Math.cos(i * 1.6) * 0.1, 1.15, Math.sin(i * 1.6) * 0.1], [0.1, 0.16, 0.1]); break;
+    case 'pine': for (let i = 0; i < 7; i++) mk(g, cone, leaf, [Math.cos(i * 0.9) * 0.2, 0.3, Math.sin(i * 0.9) * 0.2], [0.07, 0.6, 0.07], [Math.sin(i * 0.9) * 0.6, 0, -Math.cos(i * 0.9) * 0.6]); mk(g, sph, col, [0, 0.3, 0], [0.22, 0.32, 0.22]); mk(g, cone, leaf, [0, 0.66, 0], [0.12, 0.3, 0.12]); break;
+    case 'gourd': mk(g, sph, col, [0, 0.28, 0], [0.42, 0.34, 0.42]); mk(g, cyl, leaf, [0, 0.62, 0], [0.04, 0.16, 0.04]); for (let i = 0; i < 3; i++) mk(g, cyl, leaf, [Math.cos(i * 2.1) * 0.45, 0.04, Math.sin(i * 2.1) * 0.45], [0.26, 0.02, 0.26]); break;
+    case 'grape': mk(g, sph, leaf, [0, 0.5, 0], [0.5, 0.42, 0.5]); for (let i = 0; i < 3; i++) for (let k = 0; k < 4; k++) mk(g, sph, col, [Math.cos(i * 2.1) * 0.38 + (k % 2) * 0.05, 0.4 - k * 0.07, Math.sin(i * 2.1) * 0.38], 0.08); break;
+    default: mk(g, sph, col, [0, 0.35, 0], [0.7, 0.45, 0.5]); mk(g, sph, leaf, [0, 0.5, 0], [0.5, 0.3, 0.35]);
+  }
+}
+// a fish, an eel, a crab, a shell, a squid, a frog or a shrimp swimming in the pond
+function fishMesh(id) {
+  const d = FISH[id] || FISH.tilapia, m = new THREE.Group(), col = mat(d.col), dk = mat(0x2b2b2b), wh = mat(0xf5f5f0);
+  switch (d.body) {
+    case 'eel': mk(m, sph, col, [0, 0, 0], [0.55, 0.07, 0.07]); mk(m, sph, col, [0.45, 0, 0], [0.12, 0.08, 0.08]); mk(m, sph, mat(0xd8d2a0), [0, -0.03, 0], [0.5, 0.04, 0.05]); break;
+    case 'crab': mk(m, sph, col, [0, 0.02, 0], [0.22, 0.1, 0.18]); for (const s of [-1, 1]) { mk(m, sph, col, [0.2, 0.04, s * 0.2], [0.09, 0.06, 0.07]); mk(m, sph, wh, [0.04, 0.12, s * 0.07], 0.03); for (const k of [0, 1, 2]) mk(m, cyl, col, [-0.05 + k * 0.1, 0, s * 0.22], [0.012, 0.16, 0.012], [Math.PI / 2, 0, 0]); } break;
+    case 'shell': mk(m, sph, col, [0, 0.02, 0], [0.22, 0.1, 0.18]); for (let i = -2; i <= 2; i++) mk(m, box, mat(0x9a917f), [i * 0.06, 0.1, 0], [0.012, 0.025, 0.3]); break;
+    case 'squid': mk(m, sph, col, [0.05, 0, 0], [0.3, 0.1, 0.1]); mk(m, cone, col, [0.36, 0, 0], [0.1, 0.18, 0.1], [0, 0, -Math.PI / 2]); for (let i = 0; i < 4; i++) mk(m, cone, col, [-0.28, 0, (i - 1.5) * 0.04], [0.025, 0.2, 0.025], [0, 0, Math.PI / 2]); mk(m, sph, dk, [0.16, 0.05, 0.07], 0.025); mk(m, sph, dk, [0.16, 0.05, -0.07], 0.025); break;
+    case 'frog': mk(m, sph, col, [0, 0.03, 0], [0.2, 0.12, 0.16]); mk(m, sph, wh, [0.14, 0.12, 0.06], 0.045); mk(m, sph, wh, [0.14, 0.12, -0.06], 0.045); mk(m, sph, dk, [0.17, 0.12, 0.06], 0.02); mk(m, sph, dk, [0.17, 0.12, -0.06], 0.02); for (const s of [-1, 1]) mk(m, sph, col, [-0.14, 0.01, s * 0.17], [0.12, 0.04, 0.05]); break;
+    case 'shrimp': mk(m, sph, col, [0, 0, 0], [0.3, 0.12, 0.12]); mk(m, sph, col, [-0.26, -0.02, 0], [0.14, 0.1, 0.1]); mk(m, cone, col, [-0.42, -0.04, 0], [0.1, 0.16, 0.05], [0, 0, Math.PI / 2]); mk(m, cyl, col, [0.36, 0.06, 0.04], [0.012, 0.3, 0.012], [0, 0, -1.2]); mk(m, cyl, col, [0.36, 0.06, -0.04], [0.012, 0.3, 0.012], [0, 0, -1.2]); break;
+    default: { const big = ['salmon', 'seabass', 'trout', 'featherback'].includes(id) ? 1.18 : 1; mk(m, sph, col, [0, 0, 0], [0.32 * big, 0.14 * big, 0.14]); mk(m, cone, col, [-0.36 * big, 0, 0], [0.12, 0.2, 0.05], [0, 0, Math.PI / 2]); mk(m, sph, wh, [0.2 * big, 0.04, 0.09], 0.03); mk(m, sph, dk, [0.22 * big, 0.04, 0.09], 0.015); if (id === 'goldfish' || id === 'ruby') mk(m, cone, col, [0, 0.14, 0], [0.1, 0.16, 0.04]); }
+  }
+  return m;
+}
 function cropMesh(id) {
   const g = new THREE.Group(), c = CROPS[id], leaf = mat(0x4f9a4a), col = mat(c.col);
-  if (id === 'carrot') { for (let i = 0; i < 3; i++) { mk(g, cone, leaf, [(i - 1) * 0.28, 0.5, 0], [0.12, 0.7, 0.12], [0, 0, (i - 1) * 0.4]); mk(g, cone, col, [(i - 1) * 0.28, 0.12, 0], [0.12, 0.3, 0.12], [Math.PI, 0, 0]); } }
+  if (c.sh) shapedCrop(g, c);
+  else if (id === 'carrot') { for (let i = 0; i < 3; i++) { mk(g, cone, leaf, [(i - 1) * 0.28, 0.5, 0], [0.12, 0.7, 0.12], [0, 0, (i - 1) * 0.4]); mk(g, cone, col, [(i - 1) * 0.28, 0.12, 0], [0.12, 0.3, 0.12], [Math.PI, 0, 0]); } }
   else if (id === 'cabbage') { mk(g, sph, mat(0x8fd16a), [0, 0.35, 0], [0.55, 0.45, 0.55]); mk(g, sph, mat(0xb6e88a), [0, 0.5, 0], [0.38, 0.3, 0.38]); }
   else if (id === 'tomato') { mk(g, sph, leaf, [0, 0.45, 0], [0.5, 0.45, 0.5]); for (let i = 0; i < 5; i++) mk(g, sph, col, [Math.cos(i * 1.3) * 0.38, 0.4 + (i % 2) * 0.25, Math.sin(i * 1.3) * 0.38], 0.13); }
   else if (id === 'corn') { for (let i = 0; i < 3; i++) { mk(g, cyl, leaf, [(i - 1) * 0.35, 0.8, (i % 2) * 0.2], [0.07, 1.6, 0.07]); mk(g, sph, col, [(i - 1) * 0.35, 0.95, 0.1], [0.1, 0.28, 0.1]); } }
@@ -468,7 +606,7 @@ function build3d() {
   mk(pond, box, mat(0xa57a4c), [-1.6, 0.17, 2.3], [0.95, 0.08, 2.3]); for (const [x, z] of [[-2.0, 3.3], [-1.2, 3.3], [-2.0, 1.4], [-1.2, 1.4]]) mk(pond, cyl, mat(0x6d4c41), [x, 0.12, z], [0.06, 0.5, 0.06]);
   const pcl = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.3, 16), new THREE.MeshBasicMaterial({ visible: false })); pcl.scale.set(1.12, 1, 0.86); pcl.position.y = 0.15; pond.add(pcl); click(pcl, 'pond', -1);
   for (const [dx, r] of [[0, 2.45], [-1.5, 1.9], [1.7, 2.1]]) COL.push({ t: 'c', x: QX + dx, z: QZ, r });
-  S.pond.forEach((f, i) => { const m = new THREE.Group(); mk(m, sph, mat(FISH[f.f] && f.f === 'carp' ? 0xe0443a : f.f === 'catfish' ? 0x6d5c4c : f.f === 'shrimp' ? 0xf08a6a : 0xf0a24a), [0, 0, 0], [0.32, 0.14, 0.14]); mk(m, cone, mat(0xf0a24a), [-0.36, 0, 0], [0.12, 0.2, 0.05], [0, 0, Math.PI / 2]); m.userData.fs = { a: rnd(0, 6.28), r: rnd(0.6, 2.2), sp: rnd(0.4, 0.9) * (i % 2 ? 1 : -1) }; const b = bub('🧺'); b.visible = false; b.position.y = 0.9; m.add(b); m.userData.b = b; pond.add(m); fishM.push(m); click(m, 'pond', i); });
+  S.pond.forEach((f, i) => { const m = fishMesh(f.f); m.userData.fs = { a: rnd(0, 6.28), r: rnd(0.6, 2.2), sp: rnd(0.4, 0.9) * (i % 2 ? 1 : -1) }; const b = bub('🧺'); b.visible = false; b.position.y = 0.9; m.add(b); m.userData.b = b; pond.add(m); fishM.push(m); click(m, 'pond', i); });
   // decorations (each beside a road or a bed block, never on one)
   const D = S.deco;
   const tree = (x, z, s = 1) => { const hh = hash(x + ',' + z), gs = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35]; mk(root, cyl, mat(0x5a4030, { roughness: 1 }), [x, 0.9 * s, z], [0.17 * s, 1.8 * s, 0.17 * s]); [[0, 2.3, 0, 1.15], [0.55, 1.9, 0.25, 0.8], [-0.5, 2.0, -0.2, 0.85], [0.1, 2.95, 0.1, 0.7], [-0.2, 1.8, 0.5, 0.7]].forEach(([dx, dy, dz, r], i) => mk(root, sph, mat(gs[(hh + i) % 4], { roughness: 1 }), [x + dx * s, dy * s, z + dz * s], [r * s, r * 0.88 * s, r * s])); };
@@ -593,7 +731,7 @@ function targets() {
   const c = [], add = (d, icon, label, fn) => c.push({ d, icon, label, fn }), at = (x, z) => Math.hypot(P.x - x, P.z - z);
   S.plots.forEach((p, i) => {
     const o = plotPos(i), d = at(o.x, o.z); if (d > 1.5) return;
-    if (!p.c) add(d, '🌱', `ปลูก${CROPS[S.sel].n} ${CROPS[S.sel].seed}฿`, () => plant(i));
+    if (!p.c) add(d, '🌱', `ปลูก${CROPS[S.sel].n} ${(S.seeds[S.sel] || 0) > 0 ? '(เมล็ดในคลัง ×' + S.seeds[S.sel] + ')' : seedUnit(S.sel) + '฿'}`, () => plant(i));
     else if (cropReady(p)) add(d, '🧺', `เก็บ${CROPS[p.c].n}`, () => harvestPlot(i));
     else if (!p.w) add(d, '💧', `รดน้ำ ${CROPS[p.c].n}`, () => water(i));
     else add(d + 0.8, CROPS[p.c].i, `${CROPS[p.c].n} กำลังโต`, () => { const left = Math.ceil((CROPS[p.c].sec - p.p) / 1.5); toast(`${CROPS[p.c].i} อีก ${left >= 60 ? Math.ceil(left / 60) + ' นาที' : left + ' วิ'}`); });
@@ -643,6 +781,9 @@ let loopOn = false, lastT = 0, acc = 0, saveT = 0;
 async function startGame(n, name) {
   let data = typeof name === 'string' ? null : await readSlot(n);
   S = Object.assign(fresh(typeof name === 'string' ? name : ''), data || {}); slot = n;
+  if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = [];
+  if (data && S.pv !== 2) { S.pv = 2; S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= S.plots.length)); }      // older saves counted plots 6/8/12/16: keep the number of beds you already had
+  while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0 });
   // offline progress: the farm kept growing while the game was closed (max 12 hours)
   const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update(off); if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }
   P.x = S.px || 0; P.z = S.pz || 10.5; P.rot = Math.PI; CAM.yaw = 0; CF.init = 0; V.x = V.z = 0; LT.key = '';
