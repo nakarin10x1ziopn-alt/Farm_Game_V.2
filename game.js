@@ -135,7 +135,7 @@ const trend = id => factor(id, day()) - factor(id, day() - 1);
 const SUPPLY = {   // things that are not seeds: base price per unit, what each does
   feed: { n: 'อาหารสัตว์', i: '🌾', price: FEED_PRICE, d: 'อาหารธรรมดา สัตว์กิน 1-3 ถุงต่อรอบผลิต' },
   feed2: { n: 'อาหารเร่งผลผลิต', i: '⚡', price: FEED_PRICE * 3, d: 'สัตว์ที่ได้กินจะผลิตเร็วขึ้น 30% (ใช้ก่อนอาหารธรรมดา)', lv: 3 },
-  fert: { n: 'ปุ๋ย', i: '🧪', price: 4, d: 'ใส่ตอนปลูก ผักโตเร็วขึ้น 35% (ใช้ร่วมกับการรดน้ำได้)', lv: 2 },
+  fert: { n: 'ปุ๋ย', i: '🧪', price: 4, d: 'ใส่ตอนปลูก ผักโตเร็วขึ้น 35% (ใช้ร่วมกับการรดน้ำได้)' },
 };
 const bulkF = n => (n >= 20 ? 0.9 : n >= 5 ? 0.95 : 1);
 const dealOf = d => {   // three deals a farm day: two seeds and one supply, the same for everyone on that day
@@ -890,12 +890,38 @@ async function renderTitle() {
 }
 function showTitle() { if (S) save(); S = null; slot = 0; $('title').hidden = false; $('tip').hidden = true; renderTitle(); }
 let loopOn = false, lastT = 0, acc = 0, saveT = 0;
+// A save from ANY earlier version (or one played a long way, or damaged) is brought up to date here, so it always opens in the latest version:
+// missing fields get defaults, numbers are repaired, things that no longer exist are dropped, and the counts that changed meaning are converted.
+function sanitize(S, raw) {
+  const num = (v, d, a = -Infinity, b = Infinity) => (typeof v === 'number' && isFinite(v) ? Math.min(b, Math.max(a, v)) : d);
+  const F = fresh(S.name);
+  if (raw.pv !== 2) { S.pv = 2; S.u = Object.assign({}, S.u); S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= (Array.isArray(S.plots) ? S.plots.length : 0))); if (S.u.plot < 0) S.u.plot = PLOTS.length - 1; }   // old saves counted plots 6/8/12/16: keep the beds you had
+  S.name = typeof S.name === 'string' && S.name ? S.name.slice(0, 14) : 'ชาวไร่';
+  for (const k of ['money', 'xp', 't', 'dayT', 'bank']) S[k] = num(S[k], F[k], 0);
+  S.lvl = Math.floor(num(S.lvl, 1, 1)); S.dayN = Math.floor(num(S.dayN, 1, 1)); S.bankDay = Math.floor(num(S.bankDay, S.dayN, 1)); S.en = num(S.en, 100, 0, 100);
+  for (const k of ['feed', 'feed2', 'fert']) S[k] = Math.floor(num(S[k], k === 'feed' ? F.feed : 0, 0));
+  if (!TM[S.tm]) S.tm = 'normal'; if (S.dayT >= dayLen()) S.dayT = 0;
+  S.u = Object.assign({}, F.u, S.u && typeof S.u === 'object' ? S.u : {}); for (const u of UPS) S.u[u.k] = Math.floor(num(S.u[u.k], 0, 0, u.max));
+  S.u.plot = Math.floor(num(S.u.plot, 0, 0, PLOTS.length - 1));
+  if (!Array.isArray(S.plots)) S.plots = [];
+  S.plots = S.plots.slice(0, PLOTS[PLOTS.length - 1]).map(p => { const o = p && typeof p === 'object' ? p : {}; const c = CROPS[o.c] ? o.c : null; return { c, p: c ? num(o.p, 0, 0, CROPS[c].sec) : 0, w: o.w ? 1 : 0, f: o.f ? 1 : 0 }; });
+  S.pen = (Array.isArray(S.pen) ? S.pen : []).filter(a => a && ANIMALS[a.a]).map(a => ({ a: a.a, st: ['idle', 'prod', 'ready'].includes(a.st) ? a.st : 'idle', t: num(a.t, 0, 0), pf: a.pf ? 1 : 0 }));
+  S.pond = (Array.isArray(S.pond) ? S.pond : []).filter(f => f && FISH[f.f]).map(f => ({ f: f.f, p: num(f.p, 0, 0, FISH[f.f].sec) }));
+  const inv = {}; for (const k in (S.inv && typeof S.inv === 'object' ? S.inv : {})) { const v = Math.floor(num(S.inv[k], 0, 0)); if (v > 0 && ITEMS[k]) inv[k] = v; } S.inv = inv;
+  const sd = {}; for (const k in (S.seeds && typeof S.seeds === 'object' ? S.seeds : {})) { const v = Math.floor(num(S.seeds[k], 0, 0, 99)); if (v > 0 && CROPS[k]) sd[k] = v; } S.seeds = sd;
+  if (!CROPS[S.sel] || CROPS[S.sel].lv > S.lvl) S.sel = 'carrot';
+  for (const k of ['deco', 'home']) { const o = {}; for (const id in (S[k] && typeof S[k] === 'object' ? S[k] : {})) if (S[k][id]) o[id] = 1; S[k] = o; }
+  if (S.job && !(RECIPES.some(r => r.id === S.job.id))) S.job = null; else if (S.job) S.job.t = num(S.job.t, 0, 0);
+  if (!Array.isArray(S.hist)) S.hist = []; if (!S.led || typeof S.led !== 'object') S.led = null;
+  if (!S.stats || typeof S.stats !== 'object') S.stats = { earned: 0 }; S.stats.earned = num(S.stats.earned, 0, 0);
+  S.px = num(S.px, 0, -13, 13); S.pz = num(S.pz, 10.5, -8, 13.4); S.last = num(S.last, Date.now(), 0, Date.now());
+}
 async function startGame(n, name) {
   let data = typeof name === 'string' ? null : await readSlot(n);
   S = Object.assign(fresh(typeof name === 'string' ? name : ''), data || {}); slot = n;
   if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = []; if (!S.home) S.home = {}; if (S.en == null) S.en = 100;
   if (data && data.dayN == null) { S.dayN = Math.floor(S.t / DAY) + 1; S.dayT = (S.t % DAY) / DAY * dayLen(); }      // older saves: keep the day number and the time of day
-  if (data && S.pv !== 2) { S.pv = 2; S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= S.plots.length)); }      // older saves counted plots 6/8/12/16: keep the number of beds you already had
+  if (data) sanitize(S, data);
   while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0 });
   // offline progress: the farm kept growing while the game was closed (max 12 hours)
   const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update.nd = 1; update(off); update.nd = 0; if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }
