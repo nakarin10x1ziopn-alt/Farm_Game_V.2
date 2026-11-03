@@ -83,6 +83,7 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
 #rot { display: none; position: fixed; inset: 0; z-index: 99; background: #0b1a12; align-items: center; justify-content: center; text-align: center; padding: 30px; font-size: 18px; }
 @media (orientation: landscape) and (max-height: 500px) { #rot { display: flex; } }
 @media (min-width: 700px) { #app { border-left: 1px solid var(--line); border-right: 1px solid var(--line); } }
+#kbhint { display: none; }
 /* placing a vegetable bed */
 #plcbar { position: absolute; left: 10px; right: 10px; bottom: calc(232px + env(safe-area-inset-bottom)); z-index: 7; padding: 10px 12px; }
 #plctxt { font-size: 13.5px; margin-bottom: 6px; line-height: 1.4; }
@@ -116,6 +117,20 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
   #nav { left: 24px; transform: none; width: min(560px, calc(100% - 640px)); }
   #hud { width: min(400px, 30vw); }
 }
+/* laptop / desktop with a mouse and keyboard: the full window, keys for everything, no joystick (phone and iPad layouts are untouched) */
+@media (min-width: 1100px) and (min-height: 600px) and (hover: hover) and (pointer: fine) {
+  #joy { display: none; }
+  #kbhint { display: block; position: absolute; left: 24px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 5; padding: 9px 14px; font-size: 13px; line-height: 1.65; color: var(--ink-dim); max-width: min(560px, calc(100% - 700px)); }
+  #kbhint b { display: inline-block; min-width: 22px; text-align: center; padding: 0 6px; margin: 0 1px; border-radius: 6px; background: rgba(255,255,255,0.16); color: var(--ink); font-weight: 500; font-size: 12px; }
+  #act { width: 96px; height: 96px; font-size: 42px; }
+  #actwrap { bottom: calc(40px + env(safe-area-inset-bottom)); }
+  #plcbar { bottom: calc(40px + env(safe-area-inset-bottom)); }
+  .btn { cursor: pointer; } .btn:not([disabled]):hover { filter: brightness(1.08); } #nav button:hover { background: rgba(255,255,255,0.08); }
+  #c { cursor: grab; } #c:active { cursor: grabbing; }
+}
+@media (min-width: 1600px) and (min-height: 800px) and (hover: hover) and (pointer: fine) {
+  #sheet .box { width: min(680px, 40vw); } #hud { width: min(460px, 26vw); } .card h4 { font-size: 17.5px; } .card p { font-size: 14.5px; }
+}
 </style>
 </head>
 <body>
@@ -127,6 +142,7 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
   <button id="harvest" hidden></button>
   <div id="joy"><i id="knob"></i></div>
   <div id="actwrap"><div id="actlbl" hidden></div><button id="act" class="idle">✋</button></div>
+  <div id="kbhint" class="panel">⌨️ <b>W</b><b>A</b><b>S</b><b>D</b> หรือ <b>ลูกศร</b> เดิน · <b>E</b> หรือ <b>Space</b> ทำสิ่งที่แสดงบนปุ่ม · <b>Q</b><b>R</b> หมุนกล้อง · <b>ล้อเมาส์</b> หรือ <b>+</b><b>−</b> ซูม · ลากเมาส์หมุนกล้อง<br><b>1</b> แปลง <b>2</b> สัตว์ <b>3</b> บ่อปลา <b>4</b> ตลาด <b>5</b> เมนู · <b>H</b> เก็บทั้งหมด · <b>Esc</b> ปิดหน้าต่าง</div>
   <div id="nav" class="panel">
     <button data-a="tab" data-v="farm"><b>🌱</b>แปลงผัก</button>
     <button data-a="tab" data-v="pen"><b>🐔</b>สัตว์</button>
@@ -146,8 +162,8 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
   </div>
 </div>
 <div id="rot">📱 กรุณาหมุนมือถือเป็นแนวตั้ง<br>เกมนี้เล่นบนมือถือแนวตั้ง (iPad เล่นได้ทั้งแนวตั้งและแนวนอน)</div>
-<script src="config.js?v=22"></script>
+<script src="config.js?v=23"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="game.js?v=22"></script>
+<script src="game.js?v=23"></script>
 </body>
 </html>

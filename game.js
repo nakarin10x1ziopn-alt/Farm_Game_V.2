@@ -916,6 +916,7 @@ function stepPlayer(dt) {
   const idle = tab || $('title').hidden === false || m < 0.1;
   if (!idle) { const e = Math.pow((m - 0.1) / 0.9, 1.15); jx = jx / m * e; jy = jy / m * e; m = e; }
   // the wanted velocity follows the stick; the real velocity eases towards it (frame-rate independent), so starts and stops are soft
+  if (!tab) { if (KEYS.q) CAM.yaw += 1.8 * dt; if (KEYS.r) CAM.yaw -= 1.8 * dt; }
   const spd = S.en < TIRED ? 3.7 : 4.6, tx = idle ? 0 : (-Math.sin(CAM.yaw) * jy + Math.cos(CAM.yaw) * jx) * spd, tz = idle ? 0 : (-Math.cos(CAM.yaw) * jy - Math.sin(CAM.yaw) * jx) * spd, k = 1 - Math.exp(-dt * (idle ? 13 : 9));
   V.x += (tx - V.x) * k; V.z += (tz - V.z) * k;
   const sp = Math.hypot(V.x, V.z);
@@ -973,7 +974,26 @@ function bindInput() {
   cv.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; CAM.yaw -= (e.clientX - drag.x) * 0.008; CAM.pitch = Math.max(0.12, Math.min(1.15, CAM.pitch + (e.clientY - drag.y) * 0.005)); drag.x = e.clientX; drag.y = e.clientY; });
   const dend = e => { if (drag && e.pointerId === drag.id) drag = null; }; cv.addEventListener('pointerup', dend); cv.addEventListener('pointercancel', dend);
   $('act').addEventListener('click', doAct);
-  addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'e' || k === ' ') { if (!tab && $('title').hidden) doAct(); } else KEYS[k] = 1; });
+  addEventListener('keydown', e => {
+    if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase(), playing = S && $('title').hidden && $('tip').hidden;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (k === 'e' || k === ' ' || k === 'enter') { if (!tab && $('title').hidden && $('tip').hidden) { e.preventDefault(); doAct(); } return; }
+    if (playing) {
+      if (k === 'escape') { if (PLC || PICK) A.plcno(); else if (tab) closeSheet(); return; }
+      const tabs = ['farm', 'pen', 'pond', 'market', 'up'], i = '12345'.indexOf(k);
+      if (i >= 0 && k.length === 1) { e.preventDefault(); if (PLC) return; if (tab === tabs[i]) closeSheet(); else openTab(tabs[i]); return; }
+      if (k === 'h' && !tab) { e.preventDefault(); const b = $('harvest'); if (b && !b.hidden) b.click(); return; }
+      if (k === '+' || k === '=') { CAM.dist = Math.max(5, CAM.dist - 1); return; }
+      if (k === '-' || k === '_') { CAM.dist = Math.min(24, CAM.dist + 1); return; }
+      if (k.startsWith('arrow') || k === ' ') e.preventDefault();
+    }
+    KEYS[k] = 1;
+  });
+  // mouse wheel zooms, a right-click does not open the browser menu over the farm
+  cv.addEventListener('wheel', e => { e.preventDefault(); CAM.dist = Math.max(5, Math.min(24, CAM.dist * (1 + Math.sign(e.deltaY) * 0.08))); }, { passive: false });
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  addEventListener('blur', () => { for (const k in KEYS) delete KEYS[k]; });
   addEventListener('keyup', e => { delete KEYS[e.key.toLowerCase()]; });
 }
 
