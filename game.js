@@ -69,14 +69,17 @@ const DECOS = [
   { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 53 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 107 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 320 },
   { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 800 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 1600 },
 ];
-const DAY = 300; // seconds of play per farm day
+const DAY = 300; // the old fixed day length, only used to convert older saves
+// how long a farm day lasts in real time. A day runs 09:00 to 09:00 in game time.
+const TM = { fast: { n: 'เร็ว', len: 600, d: '1 วันในเกม = 10 นาทีจริง' }, normal: { n: 'ปกติ', len: 1200, d: '1 วันในเกม = 20 นาทีจริง' } };
+const dayLen = () => (TM[S && S.tm] || TM.normal).len;
 
 // ---------------- state ----------------
 const API = (window.FARM2_API || '').replace(/\/$/, '');
 let S = null, slot = 0, online = false;
 let DEV = (() => { try { let d = localStorage.getItem('raisukjai2-dev'); if (!d) { d = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('raisukjai2-dev', d); } return d; } catch (e) { return 'p' + Math.random().toString(36).slice(2, 12); } })();
 const fresh = name => ({ v: 1, name: name || 'ชาวไร่', money: 300, xp: 0, lvl: 1, t: 0, last: Date.now(), tip: 0, sel: 'carrot', px: 0, pz: 10.5, plots: Array.from({ length: PLOTS[0] }, () => ({ c: null, p: 0, w: 0, f: 0 })),
-  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 2, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, deco: {}, job: null, stats: { earned: 0 } });
+  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 2, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, dayN: 1, dayT: 0, tm: 'normal', deco: {}, job: null, stats: { earned: 0 } });
 // A save lives in the browser twice (localStorage + IndexedDB) so one being wiped does not lose the farm. The key no longer depends on the
 // player code; the old key (with the code) is still read so earlier saves keep working. The server copy uses the player code.
 const LKEY = n => `raisukjai2-slot${n}`, LKEY_OLD = n => `raisukjai2-${DEV}-s${n}`, sid = n => `${DEV}_${n}`;
@@ -112,7 +115,7 @@ async function pushServer() {
 function save() { if (!S || !slot) return; S.last = Date.now(); S.px = P.x; S.pz = P.z; storageOK = writeSlot(slot, S) || storageOK; if (online) pushServer(); }
 let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { saveQ = 0; save(); }, 500); };
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
-const day = () => Math.floor(S.t / DAY) + 1;
+const day = () => S.dayN;
 const xpNeed = l => Math.round(50 * Math.pow(l, 1.5));
 const cap = () => BARNS[S.u.barn], used = () => Object.values(S.inv).reduce((a, b) => a + b, 0), room = () => cap() - used();
 const prestige = () => Object.keys(S.deco).length * 0.3 + (S.deco.fountain ? 0.5 : 0);
@@ -155,7 +158,7 @@ function addItem(id, n) { const k = Math.min(n, room()); if (k <= 0) { toast('�
 
 // ---------------- simulation ----------------
 function update(dt) {
-  S.t += dt;
+  S.t += dt; S.dayT += dt; { const L = dayLen(); while (S.dayT >= L) { S.dayT -= L; S.dayN++; } }
   const sp = S.u.sprinkler ? 1.5 : 1;
   for (const p of S.plots) if (p.c) { if (S.u.sprinkler) p.w = 1; p.p = Math.min(CROPS[p.c].sec, p.p + dt * (p.w ? 1.5 : 1) * (p.f ? 1.35 : 1)); }
   for (const a of S.pen) {
@@ -321,7 +324,8 @@ function render() {
       $('stitle').textContent = '⭐ เอาเงินไปทำอะไรดี';
       const ups = UPS.map(u => { const l = S.u[u.k], done = l >= u.max, lk = u.lv && S.lvl < u.lv; return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${u.i}</div><div><h4>${u.n}${l ? `<span class="pill">ระดับ ${l}</span>` : ''}</h4><p>${done ? 'สูงสุดแล้ว' : u.desc(l)}${lk ? ` · ต้องเลเวล ${u.lv}` : ''}</p></div>${done ? '<span class="pill">✓</span>' : lk ? `<span class="pill">🔒 Lv.${u.lv}</span>` : `<button class="btn" data-a="up" data-v="${u.k}" ${S.money >= u.cost[l] ? '' : 'disabled'}>${fmt(u.cost[l])} ฿</button>`}</div>`; }).join('');
       const decos = DECOS.map(d => `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>ตกแต่งฟาร์ม · ชื่อเสียง +0.3% ราคาขาย${d.id === 'fountain' ? ' (+0.8%)' : ''}</p></div>${S.deco[d.id] ? '<span class="pill">✓ มีแล้ว</span>' : `<button class="btn" data-a="deco" data-v="${d.id}" ${S.money >= d.price ? '' : 'disabled'}>${fmt(d.price)} ฿</button>`}</div>`).join('');
-      return `<p style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">นอกจากซื้อเมล็ด สัตว์ ลูกปลา และอาหารสัตว์ เงินยังใช้ทำสิ่งเหล่านี้ได้</p><h5>อัปเกรดฟาร์ม</h5>${ups}<h5>🏦 ธนาคารสุขใจ (ดอกเบี้ย 1% ต่อวันของฟาร์ม)</h5>
+      const tmc = `<h5>⏱️ ความเร็วเวลาในเกม</h5><div class="row">${Object.keys(TM).map(k => `<button class="btn${S.tm === k ? '' : ' ghost'}" data-a="tmode" data-v="${k}">${TM[k].n}<br><small>${TM[k].d}</small></button>`).join('')}</div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">เวลากลางคืนมีดวงจันทร์และดาว ลากกล้องลงต่ำ ๆ จะเห็นท้องฟ้า · ผักและสัตว์โตตามเวลาจริงเหมือนเดิม ความเร็วนี้เปลี่ยนแค่ความยาวของ 1 วัน (ราคา ดอกเบี้ย โปรประจำวัน)</p>`;
+      return tmc + `<p style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">นอกจากซื้อเมล็ด สัตว์ ลูกปลา และอาหารสัตว์ เงินยังใช้ทำสิ่งเหล่านี้ได้</p><h5>อัปเกรดฟาร์ม</h5>${ups}<h5>🏦 ธนาคารสุขใจ (ดอกเบี้ย 1% ต่อวันของฟาร์ม)</h5>
       <div class="card"><div class="ci">🏦</div><div><h4>เงินฝาก ${fmt(S.bank)} ฿</h4><p>ฝากได้ไม่เกิน 200,000 ฿ ถอนได้ทุกเมื่อ</p></div></div>
       <div class="row"><button class="btn ghost" data-a="dep" data-v="1000" ${S.money >= 1 ? '' : 'disabled'}>ฝาก 1,000</button><button class="btn ghost" data-a="dep" data-v="all">ฝากทั้งหมด</button><button class="btn ghost" data-a="wd" data-v="all" ${S.bank ? '' : 'disabled'}>ถอนทั้งหมด</button></div>
       <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติทุก 5 วินาที' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
@@ -355,7 +359,8 @@ function render() {
   const html = R[tab](); const b = $('sbody'), st = b.scrollTop; b.innerHTML = html; b.scrollTop = st;
 }
 Object.assign(A, {
-  tab: d => { if (d.m) mktTab = d.m; openTab(d.v); }, close: closeSheet, tipok: () => { $('tip').hidden = true; if (S) { S.tip = 1; save(); } },
+  tab: d => { if (d.m) mktTab = d.m; openTab(d.v); }, close: closeSheet,
+  tmode: d => { if (!TM[d.v] || d.v === S.tm) return; const fr = S.dayT / dayLen(); S.tm = d.v; S.dayT = fr * dayLen(); LT.key = ''; toast(`⏱️ เวลาในเกม: ${TM[d.v].n} (${TM[d.v].d})`); }, tipok: () => { $('tip').hidden = true; if (S) { S.tip = 1; save(); } },
   sel: d => { S.sel = d.v; toast(`เลือก ${CROPS[d.v].n} แตะแปลงว่างเพื่อปลูก`); },
   plantall: () => { let n = 0; S.plots.forEach((p, i) => { if (!p.c && canPlant(S.sel) && CROPS[S.sel].lv <= S.lvl) { plant(i); n++; } }); if (!n) toast('ปลูกไม่ได้ (เงินไม่พอหรือยังไม่ปลดล็อก)'); },
   harvall: () => { let n = 0; S.plots.forEach((p, i) => { if (harvestPlot(i)) n++; }); if (n) toast(`เก็บเกี่ยว ${n} แปลง`); },
@@ -528,8 +533,9 @@ function buildBarn(parent) {
   mk(g, box, white, [0, 0.9, D / 2 + 0.03], [1.7, 1.8, 0.08]); mk(g, box, wood, [0, 0.9, D / 2 + 0.06], [1.5, 1.65, 0.06]);
   for (const s of [-1, 1]) mk(g, box, white, [0, 0.9, D / 2 + 0.1], [1.9, 0.07, 0.04], [0, 0, s * 0.74]);
   mk(g, box, white, [0, 0.9, D / 2 + 0.1], [0.05, 1.65, 0.04]);
-  mk(g, box, white, [0, 2.95, D / 2 + 0.03], [0.62, 0.62, 0.06]); mk(g, box, mat(0x2b2b2b), [0, 2.95, D / 2 + 0.07], [0.46, 0.46, 0.04]);
-  for (const sx of [-1, 1]) { mk(g, box, white, [sx * (W / 2 + 0.02), 1.5, 0], [0.06, 0.7, 0.7]); mk(g, box, mat(0x2b2b2b), [sx * (W / 2 + 0.05), 1.5, 0], [0.04, 0.5, 0.5]); }
+  const winM = new THREE.MeshStandardMaterial({ color: lin(0x39434d), emissive: lin(0xffc860), emissiveIntensity: 0, roughness: 0.5 }); NIGHT.wins.length = 0; NIGHT.wins.push(winM);
+  mk(g, box, white, [0, 2.95, D / 2 + 0.03], [0.62, 0.62, 0.06]); mk(g, box, winM, [0, 2.95, D / 2 + 0.07], [0.46, 0.46, 0.04]);
+  for (const sx of [-1, 1]) { mk(g, box, white, [sx * (W / 2 + 0.02), 1.5, 0], [0.06, 0.7, 0.7]); mk(g, box, winM, [sx * (W / 2 + 0.05), 1.5, 0], [0.04, 0.5, 0.5]); }
   for (const [x, z, r] of [[W / 2 + 0.85, 0.7, 0.4], [W / 2 + 0.85, -0.2, 0.4], [W / 2 + 0.6, 0.25, 0.4]]) mk(g, cyl, hay, [x, r + (z === 0.25 ? 0.75 : 0), z], [r, 0.7, r], [Math.PI / 2, 0, 0]);
   if (L >= 2) { mk(g, cyl, mat(0xd5dde0), [-W / 2 - 1.1, 1.8, -0.4], [0.85, 3.6, 0.85]); mk(g, sph, mat(0xb8322a), [-W / 2 - 1.1, 3.6, -0.4], [0.85, 0.55, 0.85]); for (const y of [0.8, 1.8, 2.8]) mk(g, cyl, mat(0x9aa7ad), [-W / 2 - 1.1, y, -0.4], [0.88, 0.07, 0.88]); }
   const fill = new THREE.Group(); g.add(fill); g.userData.fill = fill; g.userData.tier = -1; g.userData.W = W; g.userData.D = D;
@@ -616,6 +622,14 @@ function build3d() {
   if (D.gazebo) { const g = new THREE.Group(); g.position.set(-10, 0, 6.8); root.add(g); for (const x of [-1, 1]) for (const z of [-1, 1]) mk(g, cyl, mat(0xf5f5f0), [x, 1, z], [0.08, 2, 0.08]); mk(g, cone, mat(0xb8322a), [0, 2.5, 0], [1.9, 1, 1.9], [0, Math.PI / 4, 0]); mk(g, cyl, mat(0xb08968), [0, 0.06, 0], [1.4, 0.1, 1.4]); }
   if (D.fountain) { const F = LAY.fountain; COL.push({ t: 'c', x: F.x, z: F.z, r: 1.3 }); const g = new THREE.Group(); g.position.set(F.x, 0, F.z); root.add(g); mk(g, cyl, mat(0xcfd8dc), [0, 0.2, 0], [1.3, 0.4, 1.3]); mk(g, cyl, mat(0x4fb3e8), [0, 0.42, 0], [1.1, 0.05, 1.1]); mk(g, cyl, mat(0xcfd8dc), [0, 0.8, 0], [0.18, 1, 0.18]); mk(g, sph, mat(0x8ad4f5), [0, 1.4, 0], 0.3); }
   if (D.windmill) { COL.push({ t: 'c', x: 11.6, z: 6.5, r: 1 }); const g = new THREE.Group(); g.position.set(11.6, 0, 6.5); root.add(g); mk(g, cone, mat(0xf5f5f0), [0, 1.8, 0], [1, 3.6, 1]); const bl = new THREE.Group(); bl.position.set(0, 3.2, 0.9); g.add(bl); for (let i = 0; i < 4; i++) { const a = new THREE.Group(); a.rotation.z = i * Math.PI / 2; bl.add(a); mk(a, box, mat(0xb08968), [0, 1, 0], [0.16, 2, 0.04]); } bl.userData.spin = 1; root.userData.wm = bl; }
+  // lamp posts along the roads: warm glow at night
+  NIGHT.lamps.length = 0; NIGHT.glint = null;
+  { const gc = document.createElement('canvas'); gc.width = gc.height = 64; const gx = gc.getContext('2d'), gg = gx.createRadialGradient(32, 32, 2, 32, 32, 32); gg.addColorStop(0, 'rgba(255,230,160,0.95)'); gg.addColorStop(0.35, 'rgba(255,200,110,0.35)'); gg.addColorStop(1, 'rgba(255,190,90,0)'); gx.fillStyle = gg; gx.fillRect(0, 0, 64, 64); const gt2 = new THREE.CanvasTexture(gc);
+    const lamp = (x, z) => { const g = new THREE.Group(); g.position.set(x, 0, z); root.add(g); mk(g, cyl, mat(0x3b3b3b), [0, 1.1, 0], [0.05, 2.2, 0.05]); mk(g, box, mat(0x3b3b3b), [0.12, 2.2, 0], [0.3, 0.05, 0.05]); const bm = new THREE.MeshBasicMaterial({ color: 0xa99f80, toneMapped: false }); const bulb = new THREE.Mesh(sph, bm); bulb.scale.setScalar(0.13); bulb.position.set(0.24, 2.12, 0); g.add(bulb);
+      const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: gt2, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false })); gl.scale.set(1.9, 1.9, 1); gl.position.set(0.24, 2.12, 0); gl.visible = false; g.add(gl); NIGHT.lamps.push({ bulb: bm, glow: gl }); COL.push({ t: 'c', x, z, r: 0.14 }); };
+    [[-2.05, 11.6], [2.05, 8.2], [-2.05, 4.6], [2.05, 1.8], [-2.9, -4.3], [2.9, -4.3], [-2.9, -9.5], [2.9, -9.5], [-6.6, 1.9], [6.4, 1.2], [-4.4, -9.9], [4.4, -9.9], [3.2, 13.3]].forEach(([x, z]) => lamp(x, z)); }
+  { const gm = new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false }); const gl = new THREE.Mesh(new THREE.CircleGeometry(1, 24), gm); gl.rotation.x = -Math.PI / 2; gl.scale.set(1.5, 0.45, 1); gl.position.set(LAY.pond.x, 0.17, LAY.pond.z + 0.2); gl.visible = false; root.add(gl); NIGHT.glint = gl; }
+  LT.key = '';
   // bubbles for ready crops live on the plot objects
   plotObjs.forEach(o => { const b = bub('🧺'); b.position.set(0, 1.9, 0); b.visible = false; o.g.add(b); o.b = b; });
 }
@@ -633,6 +647,7 @@ function syncPlots() {
 }
 function anim(dt) {
   const t = performance.now() / 1000;
+  if (NIGHT.moon && NIGHT.moon.visible) { NIGHT.moon.lookAt(camera.position); }
   const bg = root && root.userData.barn; if (bg) { const tr = used() <= 0 ? 0 : Math.min(4, Math.ceil(used() / cap() * 4)); if (tr !== bg.userData.tier) fillBarn(bg, tr); }
   animM.forEach((m, i) => { const a = S.pen[i]; if (!a) return; const n = m.userData.pn; n.w -= dt;
     if (a.st === 'ready' || n.w > 0) { m.position.y = a.st === 'ready' ? Math.abs(Math.sin(t * 4 + i)) * 0.12 : 0; } else { if (Math.hypot(n.tx - m.position.x, n.tz - m.position.z) < 0.15) { n.tx = rnd(-2.7, 2.7); n.tz = rnd(-2.1, 2.1); n.w = rnd(1, 4); } const dx = n.tx - m.position.x, dz = n.tz - m.position.z, d = Math.hypot(dx, dz) || 1; m.position.x += dx / d * dt * 0.7; m.position.z += dz / d * dt * 0.7; m.rotation.y = Math.atan2(dx, dz); m.position.y = Math.abs(Math.sin(t * 8 + i)) * 0.05; }
@@ -640,23 +655,43 @@ function anim(dt) {
   fishM.forEach((m, i) => { const f = S.pond[i]; if (!f) return; const s = m.userData.fs; s.a += dt * s.sp; m.position.set(Math.cos(s.a) * s.r * 1.35, 0.17, Math.sin(s.a) * s.r); m.rotation.y = -s.a + (s.sp > 0 ? -Math.PI / 2 : Math.PI / 2); const sc = 0.55 + 0.45 * Math.min(1, f.p / FISH[f.f].sec); m.userData.b.visible = fishReady(f); m.scale.setScalar(sc * 1.4); });
   if (root && root.userData.wm) root.userData.wm.rotation.z += dt * 1.2;
 }
-const KF = [   // hour, sky top, horizon, sun colour, sun power, ambient, sun height
-  [0, 0x0a1430, 0x1c2a48, 0x8fa4e0, 0.35, 0.55, 30], [5, 0x0a1430, 0x1c2a48, 0x8fa4e0, 0.35, 0.55, 30], [6.5, 0x4a78b8, 0xf2a86a, 0xffb878, 1.1, 0.75, 12], [8.5, 0x3f86d6, 0xbfdcf0, 0xfff2dc, 1.8, 0.95, 42],
-  [12, 0x3a82d8, 0xc4e0f4, 0xfff6e8, 2.0, 1.0, 70], [16, 0x3f86d6, 0xbfdcf0, 0xfff2dc, 1.8, 0.95, 42], [18, 0x4a5f9c, 0xf08a5a, 0xff9a5a, 1.15, 0.75, 12], [19.5, 0x16203f, 0x33406a, 0x8fa4e0, 0.4, 0.55, 25], [24, 0x0a1430, 0x1c2a48, 0x8fa4e0, 0.35, 0.55, 30],
+const KF = [   // hour, sky top, horizon, light colour, light power, ambient. After ~19:30 the light is the moon's, before ~06:30 too
+  [0, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95], [5, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95], [6.5, 0x4a78b8, 0xf2a86a, 0xffb878, 1.1, 0.75], [8.5, 0x3f86d6, 0xbfdcf0, 0xfff2dc, 1.8, 0.95],
+  [12, 0x3a82d8, 0xc4e0f4, 0xfff6e8, 2.0, 1.0], [16, 0x3f86d6, 0xbfdcf0, 0xfff2dc, 1.8, 0.95], [18, 0x4a5f9c, 0xf08a5a, 0xff9a5a, 1.15, 0.75], [19.5, 0x1b2658, 0x4a5b94, 0xc4d6ff, 1.0, 0.9], [21, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95], [24, 0x0b1533, 0x2c4272, 0xb4ccff, 1.0, 0.95],
 ];
-const LT = { top: new THREE.Color(), hor: new THREE.Color(), sun: new THREE.Color(), tmp: new THREE.Color(), key: '' };
-const hourNow = () => (9 + (S ? (S.t % DAY) / DAY * 24 : 0)) % 24;
+const LT = { top: new THREE.Color(), hor: new THREE.Color(), sun: new THREE.Color(), tmp: new THREE.Color(), key: '', night: 0 };
+const hourNow = () => (9 + (S ? S.dayT / dayLen() * 24 : 0)) % 24;
+const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const NIGHT = { fill: null, toast: 0, moon: null, halo: null, stars: [], lamps: [], wins: [], glint: null, lampL: null, mv: new THREE.Vector3() };
 function applyLight() {
-  const h = hourNow(); let i = 0; while (i < KF.length - 2 && h >= KF[i + 1][0]) i++;
+  const cv = $('c'), h = hourNow(); let i = 0; while (i < KF.length - 2 && h >= KF[i + 1][0]) i++;
   const a = KF[i], b = KF[i + 1], k = Math.max(0, Math.min(1, (h - a[0]) / (b[0] - a[0])));
   LT.top.setHex(a[1]).lerp(LT.tmp.setHex(b[1]), k); LT.hor.setHex(a[2]).lerp(LT.tmp.setHex(b[2]), k); LT.sun.setHex(a[3]).lerp(LT.tmp.setHex(b[3]), k);
   const key = h.toFixed(2); if (key === LT.key) return; LT.key = key;
+  const night = h >= 12 ? sstep(18.3, 19.8, h) : 1 - sstep(5.3, 6.8, h); LT.night = night;
   skyU.top.value.copy(LT.top); skyU.hor.value.copy(LT.hor);
   scene.fog.color.copy(LT.hor).convertSRGBToLinear();
-  sunL.color.copy(LT.sun).convertSRGBToLinear(); sunL.intensity = (a[4] + (b[4] - a[4]) * k) * 1.18; hemiL.intensity = (a[5] + (b[5] - a[5]) * k) * 0.62;   // V.1 look: strong sun, softer sky light = deeper, more contrasty colour
-  hemiL.color.copy(LT.top).lerp(LT.hor, 0.5).convertSRGBToLinear(); hemiL.groundColor.setHex(0x4d6a35).convertSRGBToLinear();
-  const el = (a[6] + (b[6] - a[6]) * k) * Math.PI / 180, az = (h - 6) / 14 * Math.PI;     // the sun rises in the east, sets in the west
-  sunL.position.set(-Math.cos(az) * 26, Math.max(6, Math.sin(el) * 30), 12 + Math.sin(az) * 4);
+  sunL.color.copy(LT.sun).convertSRGBToLinear(); sunL.intensity = (a[4] + (b[4] - a[4]) * k) * (1.18 - 0.3 * night); hemiL.intensity = (a[5] + (b[5] - a[5]) * k) * (0.62 + 0.4 * night);   // V.1 look by day; at night a soft blue sky light fills the shadows so the farm stays readable
+  hemiL.color.copy(LT.top).lerp(LT.hor, 0.5 + 0.3 * night).convertSRGBToLinear(); hemiL.groundColor.setHex(night > 0.5 ? 0x26402f : 0x4d6a35).lerp(LT.tmp.setHex(0x26402f), night * 0.5).convertSRGBToLinear();
+  renderer.toneMappingExposure = 0.82 + 0.3 * night;
+  // the sun crosses the sky by day, the moon by night: one shadow-casting light that follows whichever is up
+  const az = (h - 6) / 14 * Math.PI, el = (8 + 62 * Math.sin(Math.max(0, Math.min(1, (h - 6) / 13.5)) * Math.PI)) * Math.PI / 180;
+  const hm = h < 12 ? h + 24 : h, um = Math.max(0, Math.min(1, (hm - 18) / 12)), azm = um * Math.PI, elm = (14 + 20 * Math.sin(um * Math.PI)) * Math.PI / 180;
+  const mx = -Math.cos(azm) * 30, my = Math.sin(elm) * 30 + 3, mz = -8 - 8 * Math.sin(azm), sx = -Math.cos(az) * 26, sy = Math.max(6, Math.sin(el) * 30), sz = 12 + Math.sin(az) * 4;
+  sunL.position.set(sx + (mx - sx) * night, sy + (my - sy) * night, sz + (mz - sz) * night);
+  NIGHT.mv.set(mx, my, mz);
+  if (NIGHT.moon) {
+    const hl = Math.hypot(mx, mz - 10), esk = (7 + 13 * Math.sin(um * Math.PI)) * Math.PI / 180, up = night > 0.02 && um > 0 && um < 1, d = new THREE.Vector3(mx / hl * Math.cos(esk), Math.sin(esk), (mz - 10) / hl * Math.cos(esk)).multiplyScalar(175), fade = Math.min(1, night * 1.4) * Math.min(1, Math.sin(um * Math.PI) * 4 + 0.15);
+    NIGHT.moon.visible = NIGHT.halo.visible = up; NIGHT.moon.position.copy(d); NIGHT.halo.position.copy(d); NIGHT.moon.material.opacity = fade; NIGHT.halo.material.opacity = fade * 0.75;
+    NIGHT.stars.forEach(st => { st.material.opacity = night * 0.95; st.visible = night > 0.02; });
+    for (const l of NIGHT.lamps) { l.glow.material.opacity = night * 0.8; l.glow.visible = night > 0.02; l.bulb.color.setHex(night > 0.3 ? 0xfff0b8 : 0xa99f80); }
+    for (const w of NIGHT.wins) w.emissiveIntensity = night * 1.25;
+    if (NIGHT.lampL) NIGHT.lampL.intensity = night * 1.8;
+    if (NIGHT.fill) NIGHT.fill.intensity = night * 0.4;
+    cv.style.filter = `saturate(${(1.15 - 0.25 * night).toFixed(2)}) contrast(1.06)`;
+    if (night > 0.9 && up && NIGHT.toast !== S.dayN) { NIGHT.toast = S.dayN; toast('🌙 ดวงจันทร์ขึ้นแล้ว ลากกล้องลงต่ำ ๆ เพื่อดูท้องฟ้า'); }
+    if (NIGHT.glint) { NIGHT.glint.visible = up && NIGHT.mv.y > 0; NIGHT.glint.material.opacity = fade * 0.55; NIGHT.glint.position.x = LAY.pond.x - mx * 0.04; NIGHT.glint.position.z = LAY.pond.z + 0.2; }
+  }
 }
 let sunL, hemiL, skyU;
 function resize() { const w = $('app').clientWidth, h = $('app').clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
@@ -674,6 +709,17 @@ function init3d() {
   hemiL = new THREE.HemisphereLight(0xdcefff, 0x4d6a35, 0.65); scene.add(hemiL);
   sunL = new THREE.DirectionalLight(0xfff2dc, 1.1); sunL.castShadow = true; sunL.shadow.mapSize.set(1024, 1024); sunL.shadow.bias = -0.0004; sunL.shadow.normalBias = 0.03;
   const sc = sunL.shadow.camera; sc.left = -17; sc.right = 17; sc.top = 21; sc.bottom = -21; sc.near = 1; sc.far = 80; scene.add(sunL); scene.add(sunL.target);
+  // the night sky: stars, a moon with craters and a soft halo, and a warm lamp light over the plaza
+  { const rnd2 = (() => { let x = 12345; return () => (x = (x * 16807) % 2147483647) / 2147483647; })();
+    for (const [n, size] of [[420, 1.8], [90, 3.0]]) { const pos = []; for (let q = 0; q < n; q++) { const u = rnd2() * 6.283, v = 0.06 + rnd2() * 0.94, r = Math.sqrt(1 - v * v); pos.push(Math.cos(u) * r * 185, v * 185, Math.sin(u) * r * 185); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); const st = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xfff6e0, size, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false })); st.frustumCulled = false; st.renderOrder = -1; scene.add(st); NIGHT.stars.push(st); }
+    const mc = document.createElement('canvas'); mc.width = mc.height = 128; const g2 = mc.getContext('2d'), gr = g2.createRadialGradient(56, 54, 6, 64, 64, 62); gr.addColorStop(0, '#fffbe8'); gr.addColorStop(0.8, '#f3ebc8'); gr.addColorStop(1, '#e2d6a8'); g2.fillStyle = gr; g2.beginPath(); g2.arc(64, 64, 62, 0, 7); g2.fill();
+    for (const [x, y, r, al] of [[44, 48, 11, 0.16], [78, 40, 8, 0.13], [82, 78, 14, 0.14], [50, 86, 7, 0.12], [64, 62, 5, 0.1], [98, 60, 6, 0.1], [34, 70, 6, 0.1]]) { g2.fillStyle = `rgba(150,138,100,${al})`; g2.beginPath(); g2.arc(x, y, r, 0, 7); g2.fill(); }
+    const mt = new THREE.CanvasTexture(mc); mt.encoding = THREE.sRGBEncoding; NIGHT.moon = new THREE.Mesh(new THREE.CircleGeometry(10, 40), new THREE.MeshBasicMaterial({ map: mt, transparent: true, depthWrite: false, fog: false, toneMapped: false })); NIGHT.moon.renderOrder = 0; NIGHT.moon.frustumCulled = false; scene.add(NIGHT.moon);
+    const hc = document.createElement('canvas'); hc.width = hc.height = 128; const g3 = hc.getContext('2d'), hg = g3.createRadialGradient(64, 64, 4, 64, 64, 64); hg.addColorStop(0, 'rgba(255,248,215,0.9)'); hg.addColorStop(0.3, 'rgba(210,225,255,0.32)'); hg.addColorStop(1, 'rgba(160,190,255,0)'); g3.fillStyle = hg; g3.fillRect(0, 0, 128, 128);
+    NIGHT.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(hc), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); NIGHT.halo.scale.set(80, 80, 1); NIGHT.halo.renderOrder = -0.5; scene.add(NIGHT.halo);
+    NIGHT.fill = new THREE.DirectionalLight(0x9fb8ff, 0); NIGHT.fill.position.set(0, 9, 30); scene.add(NIGHT.fill);
+    NIGHT.lampL = new THREE.PointLight(0xffc27a, 0, 16, 2); NIGHT.lampL.position.set(LAY.plaza.x, 2.8, LAY.plaza.z + 1.5); scene.add(NIGHT.lampL); }
   ray = new THREE.Raycaster(); build3d(); resize(); addEventListener('resize', resize); try { new ResizeObserver(resize).observe($('app')); } catch (e) { }
   bindInput();
 }
@@ -756,7 +802,7 @@ function bindInput() {
   joy.addEventListener('pointerup', jend); joy.addEventListener('pointercancel', jend);
   const cv = $('c'); let drag = null;
   cv.addEventListener('pointerdown', e => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; CAM.yaw -= (e.clientX - drag.x) * 0.008; CAM.pitch = Math.max(0.3, Math.min(1.15, CAM.pitch + (e.clientY - drag.y) * 0.005)); drag.x = e.clientX; drag.y = e.clientY; });
+  cv.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; CAM.yaw -= (e.clientX - drag.x) * 0.008; CAM.pitch = Math.max(0.12, Math.min(1.15, CAM.pitch + (e.clientY - drag.y) * 0.005)); drag.x = e.clientX; drag.y = e.clientY; });
   const dend = e => { if (drag && e.pointerId === drag.id) drag = null; }; cv.addEventListener('pointerup', dend); cv.addEventListener('pointercancel', dend);
   $('act').addEventListener('click', doAct);
   addEventListener('keydown', e => { const k = e.key.toLowerCase(); if (k === 'e' || k === ' ') { if (!tab && $('title').hidden) doAct(); } else KEYS[k] = 1; });
@@ -771,7 +817,7 @@ async function renderTitle() {
   const out = [];
   for (const n of [1, 2]) {
     const d = await readSlot(n);
-    out.push(d ? `<div class="slot panel"><h4>💾 ช่อง ${n} · ${d.name || 'ชาวไร่'}</h4><p>Lv.${d.lvl} · ${fmt(d.money)} ฿ · วันที่ ${Math.floor(d.t / DAY) + 1} · เล่นล่าสุด ${ago(d.last)}</p><div class="row"><button class="btn big" data-a="play" data-v="${n}">▶ เล่นต่อ</button><button class="btn ghost" data-a="copycode" data-v="${n}">📋</button><button class="btn ghost" data-a="del" data-v="${n}">ลบ</button></div></div>`
+    out.push(d ? `<div class="slot panel"><h4>💾 ช่อง ${n} · ${d.name || 'ชาวไร่'}</h4><p>Lv.${d.lvl} · ${fmt(d.money)} ฿ · วันที่ ${d.dayN || Math.floor(d.t / DAY) + 1} · เล่นล่าสุด ${ago(d.last)}</p><div class="row"><button class="btn big" data-a="play" data-v="${n}">▶ เล่นต่อ</button><button class="btn ghost" data-a="copycode" data-v="${n}">📋</button><button class="btn ghost" data-a="del" data-v="${n}">ลบ</button></div></div>`
       : `<div class="slot panel"><h4>💾 ช่อง ${n} · ว่าง</h4><p>เริ่มฟาร์มใหม่ในช่องนี้</p><input id="nm${n}" maxlength="14" placeholder="ชื่อของคุณ เช่น สมใจ"><div class="row"><button class="btn big" data-a="newgame" data-v="${n}">🌱 เริ่มฟาร์มใหม่</button><button class="btn ghost" data-a="importcode" data-v="${n}">📥 นำเข้ารหัสเซฟ</button></div></div>`);
   }
   $('slots').innerHTML = out.join('');
@@ -782,6 +828,7 @@ async function startGame(n, name) {
   let data = typeof name === 'string' ? null : await readSlot(n);
   S = Object.assign(fresh(typeof name === 'string' ? name : ''), data || {}); slot = n;
   if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = [];
+  if (data && data.dayN == null) { S.dayN = Math.floor(S.t / DAY) + 1; S.dayT = (S.t % DAY) / DAY * dayLen(); }      // older saves: keep the day number and the time of day
   if (data && S.pv !== 2) { S.pv = 2; S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= S.plots.length)); }      // older saves counted plots 6/8/12/16: keep the number of beds you already had
   while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0 });
   // offline progress: the farm kept growing while the game was closed (max 12 hours)
