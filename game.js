@@ -5,34 +5,34 @@ const fmt = n => Math.round(n).toLocaleString('en-US');
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 // ---------------- data ----------------
-// every price you PAY is 20 % lower than before (seeds, animals, fish, feed, upgrades, decorations); the market pays 3x what the same thing costs to buy
+// every price you PAY is 20 % lower, then a further 3x lower (seeds, animals, fish, feed, upgrades, decorations); the market pays 3x what the same thing costs to buy
 const SELL_X = 3;
-const FEED_PRICE = 8;
+const FEED_PRICE = 3;
 const M = c => Math.round(c * SELL_X * 10) / 10;
 // xp is still earned as before the price change (sale prices are now 3x the cost, so xp is scaled back by this)
-const XPF = 1.07 / (SELL_X * 0.8);
+const XPF = 1.07 / (SELL_X * 0.8 / 3);
 const CROPS = {
-  carrot: { n: 'แครอท', i: '🥕', seed: 8, sec: 30, sell: M(8), lv: 1, col: 0xf08a24 },
-  cabbage: { n: 'กะหล่ำปลี', i: '🥬', seed: 16, sec: 50, sell: M(16), lv: 1, col: 0x8fd16a },
-  tomato: { n: 'มะเขือเทศ', i: '🍅', seed: 28, sec: 80, sell: M(28), lv: 2, col: 0xe0443a },
-  corn: { n: 'ข้าวโพด', i: '🌽', seed: 40, sec: 120, sell: M(40), lv: 3, col: 0xf2c12e },
-  strawberry: { n: 'สตรอว์เบอร์รี', i: '🍓', seed: 64, sec: 180, sell: M(64), lv: 5, col: 0xe8466a },
-  pumpkin: { n: 'ฟักทอง', i: '🎃', seed: 96, sec: 240, sell: M(96), lv: 7, col: 0xe8761e },
-  watermelon: { n: 'แตงโม', i: '🍉', seed: 144, sec: 300, sell: M(144), lv: 9, col: 0x3f9a4a },
+  carrot: { n: 'แครอท', i: '🥕', seed: 3, sec: 30, sell: M(3), lv: 1, col: 0xf08a24 },
+  cabbage: { n: 'กะหล่ำปลี', i: '🥬', seed: 5, sec: 50, sell: M(5), lv: 1, col: 0x8fd16a },
+  tomato: { n: 'มะเขือเทศ', i: '🍅', seed: 9, sec: 80, sell: M(9), lv: 2, col: 0xe0443a },
+  corn: { n: 'ข้าวโพด', i: '🌽', seed: 13, sec: 120, sell: M(13), lv: 3, col: 0xf2c12e },
+  strawberry: { n: 'สตรอว์เบอร์รี', i: '🍓', seed: 21, sec: 180, sell: M(21), lv: 5, col: 0xe8466a },
+  pumpkin: { n: 'ฟักทอง', i: '🎃', seed: 32, sec: 240, sell: M(32), lv: 7, col: 0xe8761e },
+  watermelon: { n: 'แตงโม', i: '🍉', seed: 48, sec: 300, sell: M(48), lv: 9, col: 0x3f9a4a },
 };
 // an animal eats `bags` feed bags per round and gives one product worth 3x that feed
 const ANIMALS = {
-  chicken: { n: 'ไก่', i: '🐔', price: 48, prod: 'egg', sec: 60, bags: 1, lv: 1 },
-  duck: { n: 'เป็ด', i: '🦆', price: 72, prod: 'duckegg', sec: 70, bags: 1, lv: 2 },
-  sheep: { n: 'แกะ', i: '🐑', price: 120, prod: 'wool', sec: 140, bags: 2, lv: 4 },
-  pig: { n: 'หมู', i: '🐖', price: 176, prod: 'pork', sec: 190, bags: 3, lv: 6 },
-  cow: { n: 'วัว', i: '🐄', price: 264, prod: 'milk', sec: 170, bags: 3, lv: 8 },
+  chicken: { n: 'ไก่', i: '🐔', price: 16, prod: 'egg', sec: 60, bags: 1, lv: 1 },
+  duck: { n: 'เป็ด', i: '🦆', price: 24, prod: 'duckegg', sec: 70, bags: 1, lv: 2 },
+  sheep: { n: 'แกะ', i: '🐑', price: 40, prod: 'wool', sec: 140, bags: 2, lv: 4 },
+  pig: { n: 'หมู', i: '🐖', price: 59, prod: 'pork', sec: 190, bags: 3, lv: 6 },
+  cow: { n: 'วัว', i: '🐄', price: 88, prod: 'milk', sec: 170, bags: 3, lv: 8 },
 };
 const FISH = {
-  tilapia: { n: 'ปลานิล', i: '🐟', price: 16, sec: 100, sell: M(16), lv: 1 },
-  carp: { n: 'ปลาคาร์ป', i: '🐠', price: 32, sec: 160, sell: M(32), lv: 3 },
-  catfish: { n: 'ปลาดุก', i: '🐡', price: 56, sec: 220, sell: M(56), lv: 5 },
-  shrimp: { n: 'กุ้งก้ามกราม', i: '🦐', price: 88, sec: 320, sell: M(88), lv: 8 },
+  tilapia: { n: 'ปลานิล', i: '🐟', price: 5, sec: 100, sell: M(5), lv: 1 },
+  carp: { n: 'ปลาคาร์ป', i: '🐠', price: 11, sec: 160, sell: M(11), lv: 3 },
+  catfish: { n: 'ปลาดุก', i: '🐡', price: 19, sec: 220, sell: M(19), lv: 5 },
+  shrimp: { n: 'กุ้งก้ามกราม', i: '🦐', price: 29, sec: 320, sell: M(29), lv: 8 },
 };
 // every sellable thing: n name, i icon, base price
 const ITEMS = {};
@@ -52,8 +52,8 @@ const PROC = { soup: ['🥫', 'ซุปมะเขือเทศ'], jam: ['�
 for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], base: Math.round(Object.keys(r.in).reduce((t, k) => t + ITEMS[k].base * r.in[k], 0) * 1.08 * 10) / 10 };
 const PLOTS = [6, 8, 12, 16], PENS = [3, 5, 7, 9, 12], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
 const DECOS = [
-  { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 160 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 320 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 960 },
-  { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 2400 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 4800 },
+  { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 53 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 107 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 320 },
+  { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 800 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 1600 },
 ];
 const DAY = 300; // seconds of play per farm day
 
@@ -157,14 +157,14 @@ function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext
 
 // upgrades: the 10 things money is for (1-4 are the core buys: seeds, animals, fish, feed)
 const UPS = [
-  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 3, cost: [240, 720, 1760], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
-  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [320, 960, 2400, 5600], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
-  { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [280, 800, 2080, 4800], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
-  { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [160, 480, 1280, 3200], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
-  { k: 'sprinkler', n: 'ระบบสปริงเกอร์อัตโนมัติ', i: '💦', max: 1, cost: [960], desc: () => 'รดน้ำทุกแปลงให้เอง ผักโตเร็วขึ้น 1.5 เท่า' },
-  { k: 'feeder', n: 'เครื่องให้อาหารอัตโนมัติ', i: '⚙️', max: 1, cost: [1200], desc: () => 'อาหารสัตว์หมดแล้วซื้อเติมให้เอง ไม่ต้องกลับมาเช็ค' },
-  { k: 'work', n: 'โรงงานแปรรูป', i: '🏭', max: 1, cost: [1200], lv: 4, desc: () => 'ทำซุป แยม ชีส พาย ขายได้มากกว่าวัตถุดิบ ~8%' },
-  { k: 'truck', n: 'รถกระบะส่งของ', i: '🚚', max: 2, cost: [2800, 7200], lv: 6, desc: l => `ราคาขายทุกอย่าง +${l ? 8 : 4}%` },
+  { k: 'plot', n: 'ขยายแปลงปลูก', i: '🌱', max: 3, cost: [80, 240, 587], desc: l => `จาก ${PLOTS[l]} เป็น ${PLOTS[l + 1]} แปลง` },
+  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [107, 320, 800, 1867], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
+  { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [93, 267, 693, 1600], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
+  { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [53, 160, 427, 1067], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
+  { k: 'sprinkler', n: 'ระบบสปริงเกอร์อัตโนมัติ', i: '💦', max: 1, cost: [320], desc: () => 'รดน้ำทุกแปลงให้เอง ผักโตเร็วขึ้น 1.5 เท่า' },
+  { k: 'feeder', n: 'เครื่องให้อาหารอัตโนมัติ', i: '⚙️', max: 1, cost: [400], desc: () => 'อาหารสัตว์หมดแล้วซื้อเติมให้เอง ไม่ต้องกลับมาเช็ค' },
+  { k: 'work', n: 'โรงงานแปรรูป', i: '🏭', max: 1, cost: [400], lv: 4, desc: () => 'ทำซุป แยม ชีส พาย ขายได้มากกว่าวัตถุดิบ ~8%' },
+  { k: 'truck', n: 'รถกระบะส่งของ', i: '🚚', max: 2, cost: [933, 2400], lv: 6, desc: l => `ราคาขายทุกอย่าง +${l ? 8 : 4}%` },
 ];
 function buyUp(k) {
   const u = UPS.find(x => x.k === k), l = S.u[k]; if (l >= u.max) return; if (u.lv && S.lvl < u.lv) { toast(`ต้องเลเวล ${u.lv}`); return; }
