@@ -233,8 +233,20 @@ function render() {
     },
     barn() {
       $('stitle').textContent = '🏚️ ยุ้งฉาง';
-      const ids = Object.keys(S.inv).filter(k => S.inv[k] > 0);
-      return `<p style="color:var(--ink-dim);font-size:13px">เก็บแล้ว ${used()}/${cap()} ชิ้น</p>` + (ids.map(k => `<div class="card"><div class="ci">${ITEMS[k].i}</div><div><h4>${ITEMS[k].n} ×${S.inv[k]}</h4><p>ราคาวันนี้ ${price(k)} ฿</p></div></div>`).join('') || '<p style="color:var(--ink-dim)">ว่างเปล่า</p>') + '<div class="row"><button class="btn" data-a="tab" data-v="market">ไปตลาด</button></div>';
+      const ids = Object.keys(S.inv).filter(k => S.inv[k] > 0), u = used(), c = cap(), pct = Math.round(u / c * 100), lvl = S.u.barn, val = ids.reduce((a, k) => a + price(k) * S.inv[k], 0);
+      const col = pct >= 90 ? '#ff7a6a' : pct >= 70 ? '#ffcf3f' : '#7ccf5a', perRound = S.pen.reduce((a, x) => a + (ANIMALS[x.a].bags || 1), 0), rounds = perRound ? Math.floor(S.feed / perRound) : 0, upc = UPS.find(x => x.k === 'barn');
+      const note = 'style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim);line-height:1.45"';
+      let h = `<p ${note}>ยุ้งฉางคือคลังของฟาร์ม ผักที่เก็บเกี่ยว ไข่ นม ปลา และของแปรรูปจะเข้ามาพักที่นี่ก่อนนำไปขาย ถ้าเต็มจะเก็บเกี่ยวเพิ่มไม่ได้ ราคาตลาดขึ้นลงทุกวัน เก็บไว้รอขายวันที่ราคาดีได้ อาหารสัตว์ก็เก็บที่นี่</p>
+      <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">🏚️</div><div><h4>ความจุ ${u}/${c} ชิ้น <span class="pill">ระดับ ${lvl + 1}</span></h4><div class="bar" style="margin-top:6px"><i style="width:${Math.min(100, pct)}%;background:${col}"></i></div><p>${pct >= 90 ? '⚠️ เกือบเต็มแล้ว รีบขายหรืออัปเกรด' : pct >= 70 ? 'เริ่มแน่นแล้ว' : 'ยังมีที่ว่าง'} · ของในยุ้งมูลค่า ≈ ${fmt(val)} ฿</p></div></div>`;
+      h += lvl < upc.max ? `<div class="card"><div class="ci">📦</div><div><h4>ขยายยุ้งฉาง</h4><p>${BARNS[lvl]} → ${BARNS[lvl + 1]} ชิ้น</p></div><button class="btn" data-a="up" data-v="barn" ${S.money >= upc.cost[lvl] ? '' : 'disabled'}>${fmt(upc.cost[lvl])} ฿</button></div>` : `<div class="card" style="grid-template-columns:46px 1fr"><div class="ci">📦</div><div><h4>ยุ้งฉางใหญ่สุดแล้ว</h4><p>เก็บของได้ ${c} ชิ้น</p></div></div>`;
+      h += `<h5>🌾 อาหารสัตว์ในยุ้ง</h5><div class="card"><div class="ci">🌾</div><div><h4>${S.feed} ถุง</h4><p>${S.pen.length ? `สัตว์ใช้ ${perRound} ถุงต่อรอบ · พอสำหรับ ≈ ${rounds} รอบ${S.u.feeder ? ' · เครื่องให้อาหารเติมให้เอง' : ''}` : 'ยังไม่มีสัตว์ในคอก'}</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="feed" ${S.money >= FEED_PRICE * 10 ? '' : 'disabled'}>×10 · ${FEED_PRICE * 10} ฿</button><button class="btn ghost" data-a="feed50" ${S.money >= FEED_PRICE * 50 ? '' : 'disabled'}>×50 · ${FEED_PRICE * 50} ฿</button></div></div>`;
+      h += `<h5>📦 ผลผลิตในยุ้ง</h5>`;
+      if (ids.length) {
+        h += `<div class="row"><button class="btn" data-a="sellall">ขายทั้งหมด ≈ ${fmt(val)} ฿</button><button class="btn ghost" data-a="tab" data-v="market">🏪 ไปตลาด</button></div>`;
+        h += ids.map(k => { const it = ITEMS[k], f = factor(k, day()), tip = f > 1.012 ? '<b class="up">🔥 ราคาดี ควรขาย</b>' : f < 0.995 ? '<b class="down">⏳ ราคาต่ำ รอก่อนได้</b>' : 'ราคาปกติ', rc = S.u.work ? RECIPES.filter(r => r.in[k]).map(r => `${ITEMS[r.id].i}${ITEMS[r.id].n} ได้ ${Math.floor(S.inv[k] / r.in[k])} ชุด`).filter(x => !/ 0 ชุด$/.test(x)).join(' · ') : '';
+          return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tip}${rc ? `<br>🏭 แปรรูปได้: ${rc}` : ''}</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`; }).join('');
+      } else h += '<p style="color:var(--ink-dim)">ยุ้งฉางว่างอยู่ ไปเก็บเกี่ยวผลผลิตจากแปลง คอก หรือบ่อปลาก่อนนะ</p>';
+      return h;
     },
   };
   if (!R[tab]) return;
@@ -246,6 +258,7 @@ Object.assign(A, {
   plantall: () => { let n = 0; S.plots.forEach((p, i) => { if (!p.c && S.money >= CROPS[S.sel].seed && CROPS[S.sel].lv <= S.lvl) { plant(i); n++; } }); if (!n) toast('ปลูกไม่ได้ (เงินไม่พอหรือยังไม่ปลดล็อก)'); },
   harvall: () => { let n = 0; S.plots.forEach((p, i) => { if (harvestPlot(i)) n++; }); if (n) toast(`เก็บเกี่ยว ${n} แปลง`); },
   feed: () => { if (spend(FEED_PRICE * 10)) { S.feed += 10; sfx(500); } },
+  feed50: () => { if (spend(FEED_PRICE * 50)) { S.feed += 50; sfx(500); } },
   buyan: d => { const a = ANIMALS[d.v]; if (S.pen.length >= PENS[S.u.pen]) { toast('คอกเต็ม ขยายคอกที่แท็บ ⭐'); return; } if (!spend(a.price)) return; S.pen.push({ a: d.v, st: 'idle', t: 0 }); sfx(600); build3d(); },
   sellan: d => { const a = S.pen[+d.v], g = Math.round(ANIMALS[a.a].price * 0.6); S.pen.splice(+d.v, 1); S.money += g; toast(`ขายสัตว์ได้ ${fmt(g)} ฿`); build3d(); },
   coll: d => { collectAnimal(+d.v); },
@@ -274,12 +287,13 @@ function hud() {
   if (!S) return;
   $('money').textContent = fmt(S.money) + ' ฿'; $('lv').textContent = `${S.name} · Lv.${S.lvl}`; $('xp').style.width = (S.xp / xpNeed(S.lvl) * 100) + '%';
   const m = Math.floor(hourNow() * 60), hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
-  $('day').textContent = `วันที่ ${day()} · ${hh}:${mm}`; $('barn').textContent = `🏚️ ${used()}/${cap()}`;
+  $('day').textContent = `วันที่ ${day()} · ${hh}:${mm}`; $('barn').textContent = `🏚️ ${used()}/${cap()} ›`;
   const c = CROPS[S.sel]; $('seedchip').textContent = `${c.i} ${c.n} ${c.seed}฿ ▾`;
   const n = readyCount(); $('harvest').hidden = !n; $('harvest').textContent = `🧺 เก็บทั้งหมด (${n})`;
   const rd = [S.plots.filter(cropReady).length, S.pen.filter(a => a.st === 'ready').length, S.pond.filter(fishReady).length];
   document.querySelectorAll('#nav button').forEach(b => { const k = { farm: 0, pen: 1, pond: 2 }[b.dataset.v]; let i = b.querySelector('i'); if (k != null && rd[k]) { if (!i) { i = document.createElement('i'); b.appendChild(i); } i.textContent = rd[k]; } else if (i) i.remove(); });
 }
+$('barn').style.cursor = 'pointer'; $('barn').onclick = () => openTab('barn');
 $('harvest').onclick = () => { A.harvall(); A.collall(); A.fishall(); render(); hud(); };
 
 // ---------------- 3D (same look as V.1: soft sky, warm sun, rounded low-poly) ----------------
@@ -296,8 +310,8 @@ const grassTex = () => TEX.grass || (TEX.grass = canvasTex(256, 256, (g, w, h) =
   g.globalAlpha = 0.5; for (let i = 0; i < 900; i++) { g.strokeStyle = cols[(i * 3) % cols.length]; g.lineWidth = 1; const x = Math.random() * w, y = Math.random() * h; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.random() * 3 - 1.5, y - 3 - Math.random() * 5); g.stroke(); }
 }, 26));
 const soilTex = wet => TEX['soil' + wet] || (TEX['soil' + wet] = canvasTex(128, 128, (g, w, h) => {
-  g.fillStyle = wet ? '#4a3220' : '#6d4a2d'; g.fillRect(0, 0, w, h);
-  for (let y = 0; y < h; y += 16) { g.fillStyle = wet ? '#3a271a' : '#5a3b23'; g.fillRect(0, y, w, 6); g.fillStyle = wet ? '#5a4029' : '#85603a'; g.fillRect(0, y + 8, w, 3); }
+  g.fillStyle = wet ? '#46301f' : '#7d5634'; g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 16) { g.fillStyle = wet ? '#33221a' : '#5f3f24'; g.fillRect(0, y, w, 6); g.fillStyle = wet ? '#5d432c' : '#9a7345'; g.fillRect(0, y + 8, w, 3); }
   for (let i = 0; i < 260; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.08)'; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
 }, 1));
 const soilMat = wet => mats['soilM' + wet] || (mats['soilM' + wet] = new THREE.MeshStandardMaterial({ map: soilTex(wet), roughness: 1 }));
@@ -328,60 +342,142 @@ function animalMesh(id) {
   else { mk(g, sph, W, [0, 0.75, 0], [0.55, 0.5, 0.95]); mk(g, sph, dk, [0.3, 0.9, 0.1], [0.22, 0.2, 0.3]); mk(g, sph, dk, [-0.25, 0.7, -0.3], [0.22, 0.2, 0.26]); mk(g, sph, W, [0, 0.95, 0.95], [0.3, 0.3, 0.32]); mk(g, cone, ye, [-0.2, 1.25, 0.95], [0.06, 0.25, 0.06]); mk(g, cone, ye, [0.2, 1.25, 0.95], [0.06, 0.25, 0.06]); for (const x of [-0.3, 0.3]) for (const z of [-0.6, 0.6]) mk(g, cyl, dk, [x, 0.22, z], [0.09, 0.45, 0.09]); }
   const s = { chicken: 0.9, duck: 0.9, sheep: 0.95, pig: 0.95, cow: 0.85 }[id]; g.scale.setScalar(s); return g;
 }
+// ---------------- farm layout: one tidy map, every place joined by a road ----------------
+//   north row : barn (west) · market stall (middle) · workshop (east), all facing a gravel plaza
+//   middle    : animal pen (west) and fish pond (east), each reached by its own curved branch road
+//   south     : two blocks of vegetable beds either side of the main road, which curves gently up from the farm gate
+const LAY = {
+  plotX: [-3.4, 3.4, -5.6, 5.6], plotZ: 10.2, plotDz: 2.2,
+  barn: { x: -7.5, z: -10.5 }, stall: { x: 0, z: -10 }, work: { x: 7.5, z: -10.5 }, plaza: { x: 0, z: -6.6 },
+  pen: { x: -8.6, z: -2.8 }, pond: { x: 9.2, z: -3.6 }, truck: { x: 5.2, z: 12.9 }, fountain: { x: -4.8, z: 12.6 },
+};
+const ROAD_LINES = [
+  { w: 2.3, pts: [[0.1, 13.8], [0.5, 10.5], [-0.5, 6.5], [0.4, 2.4], [0, -1.4], [0, -4.2], [0, -6.6]] },      // farm gate -> plaza: the main road, a gentle S between the two plot blocks
+  { w: 1.8, pts: [[0, -1.4], [-2.6, -0.5], [-5.4, 0.5], [-8.6, 0.7]] },                                         // -> pen gate
+  { w: 1.8, pts: [[0, -1.4], [2.6, -0.9], [5.0, -0.1], [7.4, -0.3]] },                                          // -> pond dock
+  { w: 1.8, pts: [[-1.8, -7.2], [-4, -8.2], [-6, -8.5], [-7.5, -8.1]] },                                        // plaza -> barn
+  { w: 1.8, pts: [[1.8, -7.2], [4, -8.2], [6, -8.5], [7.5, -8.1]] },                                            // plaza -> workshop
+  { w: 1.6, pts: [[0.3, 12.3], [2.4, 12.6], [4.2, 12.4]] },                                                     // spur to the truck bay
+];
+const ROADPTS = [];   // sampled road centre points, so grass, flowers and trees keep off the roads
+function roadMesh(pts, w, y, material, uvScale) {
+  const curve = new THREE.CatmullRomCurve3(pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'catmullrom', 0.5), len = curve.getLength(), n = Math.max(10, Math.round(len * 3));
+  const pos = [], uv = [], idx = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, p = curve.getPoint(t), tg = curve.getTangent(t), nx = -tg.z, nz = tg.x, m = Math.hypot(nx, nz) || 1;
+    pos.push(p.x + nx / m * w / 2, y, p.z + nz / m * w / 2, p.x - nx / m * w / 2, y, p.z - nz / m * w / 2); uv.push(0, t * len / uvScale, 1, t * len / uvScale);
+    if (i < n) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, material); m.receiveShadow = true; return m;
+}
+const roadMats = {};
+const nearRoad = (x, z, r) => { for (const p of ROADPTS) if (Math.hypot(p[0] - x, p[1] - z) < r) return true; return false; };
+const plotPos = i => ({ x: LAY.plotX[i % 4], z: LAY.plotZ - Math.floor(i / 4) * LAY.plotDz });
+// a vegetable bed is a field of four plants, not one
+function cropField(id, stage) {
+  const g = new THREE.Group(), s = 0.7 * (0.3 + 0.22 * stage);
+  [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]].forEach(([x, z], k) => { const c = cropMesh(id); c.position.set(x, 0, z); c.scale.setScalar(s); c.rotation.y = k * 1.7; g.add(c); });
+  return g;
+}
+// the barn: a red gable barn with big doors, hay bales, and (as it is upgraded) a wider body and a silo. Crates and sacks pile up outside as it fills
+function buildBarn(parent) {
+  const L = S.u.barn, g = new THREE.Group(); g.position.set(LAY.barn.x, 0, LAY.barn.z); parent.add(g);
+  const red = mat(0xb8322a), dark = mat(0x7a231c), white = mat(0xf5f1e6), wood = mat(0x7a5638), roofM = mat(0x5b4a44), hay = mat(0xe3c46a), W = 3.8 + L * 0.45, D = 3.2, ang = 0.6, hh = D / 2 * Math.tan(ang);
+  mk(g, box, red, [0, 1.35, 0], [W, 2.7, D]); mk(g, box, dark, [0, 0.12, 0], [W + 0.1, 0.24, D + 0.1]);
+  const sh = new THREE.Shape(); sh.moveTo(-D / 2, 0); sh.lineTo(D / 2, 0); sh.lineTo(0, hh); const gab = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: W, bevelEnabled: false }), red); gab.rotation.y = -Math.PI / 2; gab.position.set(W / 2, 2.7, 0); gab.castShadow = true; g.add(gab);
+  for (const s of [-1, 1]) mk(g, box, roofM, [0, 2.7 + hh / 2 + 0.06, s * D / 4], [W + 0.6, 0.14, D / 2 / Math.cos(ang) + 0.4], [s * ang, 0, 0]);
+  mk(g, box, white, [0, 0.9, D / 2 + 0.03], [1.7, 1.8, 0.08]); mk(g, box, wood, [0, 0.9, D / 2 + 0.06], [1.5, 1.65, 0.06]);
+  for (const s of [-1, 1]) mk(g, box, white, [0, 0.9, D / 2 + 0.1], [1.9, 0.07, 0.04], [0, 0, s * 0.74]);
+  mk(g, box, white, [0, 0.9, D / 2 + 0.1], [0.05, 1.65, 0.04]);
+  mk(g, box, white, [0, 2.95, D / 2 + 0.03], [0.62, 0.62, 0.06]); mk(g, box, mat(0x2b2b2b), [0, 2.95, D / 2 + 0.07], [0.46, 0.46, 0.04]);
+  for (const sx of [-1, 1]) { mk(g, box, white, [sx * (W / 2 + 0.02), 1.5, 0], [0.06, 0.7, 0.7]); mk(g, box, mat(0x2b2b2b), [sx * (W / 2 + 0.05), 1.5, 0], [0.04, 0.5, 0.5]); }
+  for (const [x, z, r] of [[W / 2 + 0.85, 0.7, 0.4], [W / 2 + 0.85, -0.2, 0.4], [W / 2 + 0.6, 0.25, 0.4]]) mk(g, cyl, hay, [x, r + (z === 0.25 ? 0.75 : 0), z], [r, 0.7, r], [Math.PI / 2, 0, 0]);
+  if (L >= 2) { mk(g, cyl, mat(0xd5dde0), [-W / 2 - 1.1, 1.8, -0.4], [0.85, 3.6, 0.85]); mk(g, sph, mat(0xb8322a), [-W / 2 - 1.1, 3.6, -0.4], [0.85, 0.55, 0.85]); for (const y of [0.8, 1.8, 2.8]) mk(g, cyl, mat(0x9aa7ad), [-W / 2 - 1.1, y, -0.4], [0.88, 0.07, 0.88]); }
+  const fill = new THREE.Group(); g.add(fill); g.userData.fill = fill; g.userData.tier = -1; g.userData.W = W; g.userData.D = D;
+  const bk = bub('🏚️'); bk.position.set(0, 4.7, 0); g.add(bk);
+  COL.push({ t: 'b', x: LAY.barn.x, z: LAY.barn.z, hw: W / 2 + 0.15, hd: D / 2 + 0.15 });
+  return g;
+}
+function fillBarn(g, tier) {
+  const f = g.userData.fill; while (f.children.length) f.remove(f.children[0]); g.userData.tier = tier;
+  const W = g.userData.W, D = g.userData.D, crate = mat(0xb08650), crate2 = mat(0x8c6a3c), sack = mat(0xe6d7b0), box_ = (x, z, y = 0) => { mk(f, box, crate, [x, 0.27 + y, z], [0.62, 0.5, 0.62]); mk(f, box, crate2, [x, 0.27 + y, z], [0.66, 0.08, 0.66]); mk(f, box, crate2, [x, 0.47 + y, z], [0.66, 0.06, 0.66]); };
+  const zf = D / 2 + 0.7, x0 = -W / 2 + 0.5;
+  if (tier >= 1) box_(x0, zf);
+  if (tier >= 2) { box_(x0 + 0.75, zf); box_(x0 + 0.3, zf + 0.1, 0.5); }
+  if (tier >= 3) { for (const [x, z] of [[-0.9, zf + 0.5], [-0.35, zf + 0.6]]) mk(f, sph, sack, [x, 0.26, z], [0.34, 0.3, 0.3]); box_(x0 + 1.5, zf); }
+  if (tier >= 4) { box_(x0 + 2.25, zf); box_(x0 + 1.5, zf, 0.5); for (const [x, z] of [[0.3, zf + 0.6], [0.85, zf + 0.5], [0.55, zf + 0.5]]) mk(f, sph, sack, [x, 0.26, z], [0.34, 0.3, 0.3]); mk(f, sph, sack, [0.55, 0.62, zf + 0.5], [0.32, 0.28, 0.28]); }
+}
 function build3d() {
   if (!scene) return;
   if (root) scene.remove(root);
-  root = new THREE.Group(); scene.add(root); COL.length = 0; plotObjs = []; penObjs = []; pondObjs = []; clickables = []; fishM = []; animM = [];
+  root = new THREE.Group(); scene.add(root); COL.length = 0; plotObjs = []; penObjs = []; pondObjs = []; clickables = []; fishM = []; animM = []; ROADPTS.length = 0;
   const click = (o, kind, i) => { o.traverse(m => { m.userData.k = kind; m.userData.i = i; }); clickables.push(o); };
-  // ground and hills
+  // roads first, so everything else can keep off them
+  for (const R of ROAD_LINES) { const c = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'catmullrom', 0.5); for (let i = 0; i <= 40; i++) { const p = c.getPoint(i / 40); ROADPTS.push([p.x, p.z]); } }
+  { const px = LAY.plaza; for (let a = 0; a < 12; a++) ROADPTS.push([px.x + Math.cos(a / 12 * 6.283) * 2, px.z + Math.sin(a / 12 * 6.283) * 2]); ROADPTS.push([px.x, px.z]); }
+  const penR = { x0: LAY.pen.x - 4.4, x1: LAY.pen.x + 4.4, z0: LAY.pen.z - 3.4, z1: LAY.pen.z + 3.2 };
+  const free = (x, z) => !nearRoad(x, z, 2.1) && !(Math.abs(x) > 2.3 && Math.abs(x) < 6.9 && z > 2.4 && z < 11.5) && !(x > penR.x0 && x < penR.x1 && z > penR.z0 && z < penR.z1) && !(Math.hypot((x - LAY.pond.x) / 4.6, (z - LAY.pond.z) / 3.7) < 1) && !(z < -8 && z > -13.6 && Math.abs(x) < 10.5) && !(Math.hypot(x - LAY.plaza.x, z - LAY.plaza.z) < 3.2) && !(Math.hypot(x - LAY.truck.x, z - LAY.truck.z) < 2.2);
+  // ground
   const gt = grassTex(); mk(root, new THREE.PlaneGeometry(110, 110), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, -10], 1, [-Math.PI / 2, 0, 0]).castShadow = false;
-  { const dt = dirtTex().clone(); dt.needsUpdate = true; dt.repeat.set(1, 7); const path = mk(root, new THREE.PlaneGeometry(2.4, 24), new THREE.MeshStandardMaterial({ map: dt, roughness: 1 }), [0, 0.02, 1], 1, [-Math.PI / 2, 0, 0]); path.castShadow = false;
-    const free = (x, z) => !(Math.abs(x) < 1.6) && !(Math.abs(x) < 7 && z > -0.8 && z < 9.6) && !(x > -8.4 && x < -0.1 && z > -7.8 && z < -0.6) && !(Math.hypot(x - 4.3, z + 4.2) < 4.4) && !(z < -8 && z > -13.2 && Math.abs(x) < 8.5);
-    const blade = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.55, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 420), dm = new THREE.Object3D(), gc = [0x6aa84a, 0x5a9a3e, 0x7bb656, 0x4f8a37];
-    let n = 0; for (let k = 0; k < 2000 && n < 420; k++) { const x = rnd(-16, 16), z = rnd(-12, 15); if (!free(x, z)) continue; dm.position.set(x, 0.25, z); dm.rotation.set(rnd(-0.25, 0.25), rnd(0, 6), rnd(-0.25, 0.25)); dm.scale.setScalar(rnd(0.7, 1.5)); dm.updateMatrix(); blade.setMatrixAt(n, dm.matrix); blade.setColorAt(n, lin(gc[n % 4])); n++; }
+  // roads: a darker gravel edge, then the dirt surface, and a stone plaza where they meet
+  { const dt = dirtTex(); roadMats.edge = roadMats.edge || new THREE.MeshStandardMaterial({ color: lin(0x8c7a55), roughness: 1, side: THREE.DoubleSide }); roadMats.top = roadMats.top || new THREE.MeshStandardMaterial({ map: dt, roughness: 1, side: THREE.DoubleSide });
+    for (const R of ROAD_LINES) { root.add(roadMesh(R.pts, R.w + 0.5, 0.022, roadMats.edge, 3)); root.add(roadMesh(R.pts, R.w, 0.03, roadMats.top, 2.4)); }
+    const pl = LAY.plaza; mk(root, cyl, mat(0x8c7a55), [pl.x, 0.02, pl.z], [2.75, 0.03, 2.75]).castShadow = false; const pt = mk(root, cyl, new THREE.MeshStandardMaterial({ map: dt, roughness: 1 }), [pl.x, 0.04, pl.z], [2.5, 0.03, 2.5]); pt.castShadow = false;
+    for (let a = 0; a < 18; a++) { const an = a / 18 * 6.283; mk(root, sph, mat(a % 2 ? 0x9e9e9e : 0xb3aea2), [pl.x + Math.cos(an) * 2.62, 0.07, pl.z + Math.sin(an) * 2.62], [0.2, 0.12, 0.2]); } }
+  // grass tufts and wild flowers, only where nothing stands
+  { const blade = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.55, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 420), dm = new THREE.Object3D(), gc = [0x6aa84a, 0x5a9a3e, 0x7bb656, 0x4f8a37];
+    let n = 0; for (let k = 0; k < 4000 && n < 420; k++) { const x = rnd(-16, 16), z = rnd(-12, 16); if (!free(x, z)) continue; dm.position.set(x, 0.25, z); dm.rotation.set(rnd(-0.25, 0.25), rnd(0, 6), rnd(-0.25, 0.25)); dm.scale.setScalar(rnd(0.7, 1.5)); dm.updateMatrix(); blade.setMatrixAt(n, dm.matrix); blade.setColorAt(n, lin(gc[n % 4])); n++; }
     blade.count = n; blade.instanceMatrix.needsUpdate = true; if (blade.instanceColor) blade.instanceColor.needsUpdate = true; root.add(blade);
     const fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 6, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 }), 90), fc = [0xf2f2ea, 0xffd23f, 0xf08aa0, 0xb69be0, 0xff8a65]; let m2 = 0;
-    for (let k = 0; k < 800 && m2 < 90; k++) { const x = rnd(-16, 16), z = rnd(-12, 15); if (!free(x, z)) continue; dm.position.set(x, 0.32, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(rnd(0.8, 1.3)); dm.updateMatrix(); fl.setMatrixAt(m2, dm.matrix); fl.setColorAt(m2, lin(fc[m2 % 5])); m2++; }
+    for (let k = 0; k < 1600 && m2 < 90; k++) { const x = rnd(-16, 16), z = rnd(-12, 16); if (!free(x, z)) continue; dm.position.set(x, 0.32, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(rnd(0.8, 1.3)); dm.updateMatrix(); fl.setMatrixAt(m2, dm.matrix); fl.setColorAt(m2, lin(fc[m2 % 5])); m2++; }
     fl.count = m2; fl.instanceMatrix.needsUpdate = true; if (fl.instanceColor) fl.instanceColor.needsUpdate = true; root.add(fl); }
   [[-14, -26, 9, 0x6fae5a], [0, -30, 11, 0x5e9e50], [15, -27, 8, 0x6fae5a], [-26, -20, 7, 0x5e9e50], [27, -18, 7, 0x6fae5a]].forEach(([x, z, r, c]) => mk(root, sph, mat(c), [x, 0, z], [r * 1.3, r * 0.7, r]));
-  // plots (4 columns)
+  // vegetable beds: raised timber frames in two blocks either side of the road
+  const wood = mat(0xa57a4c), wood2 = mat(0x7d5a36);
   S.plots.forEach((p, i) => {
-    const c = i % 4, r = Math.floor(i / 4), g = new THREE.Group(); g.position.set((c - 1.5) * 2.2, 0, 7.5 - r * 2.2); root.add(g);
-    mk(g, box, soilMat(p.w ? 1 : 0), [0, 0.1, 0], [1.9, 0.2, 1.9]); for (const sx of [-1, 1]) for (const sz of [-1, 1]) mk(g, box, mat(0x8a6a44), [sx * 0.97, 0.16, sz * 0.0], [0.06, 0.32, 1.96]).scale.x = 0.06;
+    const pp = plotPos(i), g = new THREE.Group(); g.position.set(pp.x, 0, pp.z); root.add(g);
+    mk(g, box, soilMat(p.w ? 1 : 0), [0, 0.12, 0], [1.84, 0.2, 1.84]);
+    for (const s of [-1, 1]) { mk(g, box, wood, [0, 0.2, s * 0.95], [2.0, 0.28, 0.1]); mk(g, box, wood, [s * 0.95, 0.2, 0], [0.1, 0.28, 1.8]); for (const t of [-1, 1]) mk(g, box, wood2, [s * 0.95, 0.25, t * 0.95], [0.15, 0.36, 0.15]); }
     g.userData.soil = g.children[0]; plotObjs.push({ g, c: null, st: -1 }); click(g, 'plot', i);
   });
-  // barn, market stall, workshop
-  const barn = new THREE.Group(); barn.position.set(-6, 0, -11); root.add(barn); mk(barn, box, mat(0xb8322a), [0, 1.3, 0], [3, 2.6, 2.6]); mk(barn, box, mat(0xf5f5f0), [0, 1.3, 1.31], [0.9, 1.6, 0.04]);
-  const roof = mk(barn, box, mat(0x6d4c41), [0, 3, 0], [3.4, 0.2, 3]); roof.rotation.z = 0; mk(barn, cone, mat(0x6d4c41), [0, 3.4, 0], [2.4, 1.2, 2.4], [0, Math.PI / 4, 0]); click(barn, 'barn', 0); COL.push({ t: 'c', x: -6, z: -11, r: 2.2 });
-  const stall = new THREE.Group(); stall.position.set(0, 0, -10); root.add(stall); mk(stall, box, mat(0xb08968), [0, 0.6, 0], [3, 1.2, 1.4]);
+  // barn, market stall, workshop: a row along the north edge, all facing the plaza
+  root.userData.barn = buildBarn(root); click(root.userData.barn, 'barn', 0);
+  const stall = new THREE.Group(); stall.position.set(LAY.stall.x, 0, LAY.stall.z); root.add(stall); mk(stall, box, mat(0xb08968), [0, 0.6, 0], [3, 1.2, 1.4]);
   for (let i = 0; i < 6; i++) mk(stall, box, mat(i % 2 ? 0xf5f5f0 : 0xe0443a), [-1.25 + i * 0.5, 2.2, 0.2], [0.5, 0.1, 1.9], [0.3, 0, 0]);
-  for (const x of [-1.4, 1.4]) mk(stall, cyl, mat(0x6d4c41), [x, 1.1, 0.8], [0.06, 2.2, 0.06]); mk(stall, box, mat(0xffcf3f), [0, 2.7, 0.8], [1.6, 0.4, 0.06]); click(stall, 'market', 0); COL.push({ t: 'b', x: 0, z: -10, hw: 1.7, hd: 0.9 });
-  const bk = bub('🏪'); bk.position.set(0, 3.6, -10); root.add(bk);
-  if (S.u.work) { const w = new THREE.Group(); w.position.set(6, 0, -11); root.add(w); mk(w, box, mat(0x90a4ae), [0, 1.2, 0], [2.8, 2.4, 2.4]); mk(w, box, mat(0x546e7a), [0, 2.55, 0], [3, 0.3, 2.6]); mk(w, cyl, mat(0xcfd8dc), [0.8, 3.3, 0], [0.28, 1.6, 0.28]); mk(w, box, mat(0x4fc3f7), [-0.5, 1.4, 1.22], [1, 0.8, 0.04]); click(w, 'work', 0); COL.push({ t: 'c', x: 6, z: -11, r: 2 }); const wb = bub('🏭'); wb.position.set(6, 4.4, -11); root.add(wb); }
-  if (S.u.truck) { const t = new THREE.Group(); t.position.set(6.4, 0, 9.5); t.rotation.y = -0.5; root.add(t); COL.push({ t: 'c', x: 6.4, z: 9.5, r: 1.4 }); mk(t, box, mat(S.u.truck > 1 ? 0xe0443a : 0x3e7cc8), [0, 0.7, 0], [1.2, 0.7, 2.4]); mk(t, box, mat(0xf5f5f0), [0, 1.2, 0.7], [1.1, 0.6, 0.9]); for (const x of [-0.6, 0.6]) for (const z of [-0.8, 0.8]) mk(t, cyl, mat(0x222222), [x, 0.3, z], [0.3, 0.2, 0.3], [0, 0, Math.PI / 2]); }
-  // pen with fence
-  const pen = new THREE.Group(); pen.position.set(-4.2, 0, -4.2); root.add(pen);
-  const fw = mat(0xb08968), PX = -4.2, PZ = -4.2;
+  for (const x of [-1.4, 1.4]) mk(stall, cyl, mat(0x6d4c41), [x, 1.1, 0.8], [0.06, 2.2, 0.06]); mk(stall, box, mat(0xffcf3f), [0, 2.7, 0.8], [1.6, 0.4, 0.06]); click(stall, 'market', 0); COL.push({ t: 'b', x: LAY.stall.x, z: LAY.stall.z, hw: 1.7, hd: 0.9 });
+  const bk = bub('🏪'); bk.position.set(LAY.stall.x, 3.6, LAY.stall.z); root.add(bk);
+  if (S.u.work) { const w = new THREE.Group(); w.position.set(LAY.work.x, 0, LAY.work.z); root.add(w); mk(w, box, mat(0x90a4ae), [0, 1.2, 0], [2.8, 2.4, 2.4]); mk(w, box, mat(0x546e7a), [0, 2.55, 0], [3, 0.3, 2.6]); mk(w, cyl, mat(0xcfd8dc), [0.8, 3.3, 0], [0.28, 1.6, 0.28]); mk(w, box, mat(0x4fc3f7), [-0.5, 1.4, 1.22], [1, 0.8, 0.04]); click(w, 'work', 0); COL.push({ t: 'c', x: LAY.work.x, z: LAY.work.z, r: 2 }); const wb = bub('🏭'); wb.position.set(LAY.work.x, 4.4, LAY.work.z); root.add(wb); }
+  if (S.u.truck) { const t = new THREE.Group(); t.position.set(LAY.truck.x, 0, LAY.truck.z); t.rotation.y = -1.45; root.add(t); COL.push({ t: 'c', x: LAY.truck.x, z: LAY.truck.z, r: 1.4 }); mk(t, box, mat(S.u.truck > 1 ? 0xe0443a : 0x3e7cc8), [0, 0.7, 0], [1.2, 0.7, 2.4]); mk(t, box, mat(0xf5f5f0), [0, 1.2, 0.7], [1.1, 0.6, 0.9]); for (const x of [-0.6, 0.6]) for (const z of [-0.8, 0.8]) mk(t, cyl, mat(0x222222), [x, 0.3, z], [0.3, 0.2, 0.3], [0, 0, Math.PI / 2]); }
+  // pen with fence (the gate faces the road)
+  const PX = LAY.pen.x, PZ = LAY.pen.z, pen = new THREE.Group(); pen.position.set(PX, 0, PZ); root.add(pen);
+  const fw = mat(0xb08968);
   for (const [x, z, w, d] of [[0, -2.6, 6.6, 0.08], [-3.3, 0, 0.08, 5.2], [3.3, 0, 0.08, 5.2], [-2.15, 2.6, 2.3, 0.08], [2.15, 2.6, 2.3, 0.08]]) { mk(pen, box, fw, [x, 0.55, z], [w, 0.1, d]); mk(pen, box, fw, [x, 0.3, z], [w, 0.1, d]); COL.push({ t: 'b', x: PX + x, z: PZ + z, hw: w / 2 + 0.1, hd: d / 2 + 0.1 }); }
   for (let i = -3; i <= 3; i++) for (const z of [-2.6, 2.6]) if (z < 0 || Math.abs(i * 1.1) > 1.2) mk(pen, box, fw, [i * 1.1, 0.4, z], [0.12, 0.8, 0.12]);
-  mk(pen, box, mat(0x9bc46a), [0, 0.02, 0], [6.4, 0.04, 5], undefined).castShadow = false;
+  mk(pen, box, mat(0xa88b57), [0, 0.02, 0], [6.4, 0.04, 5], undefined).castShadow = false;
+  for (const x of [-1.25, 1.25]) mk(pen, box, mat(0x6d4c41), [x, 0.7, 2.6], [0.16, 1.4, 0.16]);       // gate posts
   const pc = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 5), new THREE.MeshBasicMaterial({ visible: false })); pc.rotation.x = -Math.PI / 2; pc.position.y = 0.05; pen.add(pc); click(pc, 'pen', -1);
   S.pen.forEach((a, i) => { const m = animalMesh(a.a); m.position.set(rnd(-2.6, 2.6), 0, rnd(-2, 2)); m.userData.pn = { x: m.position.x, z: m.position.z, tx: m.position.x, tz: m.position.z, w: rnd(0, 3) }; pen.add(m); const b = bub(ITEMS[ANIMALS[a.a].prod].i); b.visible = false; b.position.y = 1.7; m.add(b); m.userData.b = b; click(m, 'animal', i); animM.push(m); });
-  // pond
-  const pond = new THREE.Group(); pond.position.set(4.3, 0, -4.2); root.add(pond);
-  mk(pond, cyl, mat(0xc9b79c), [0, 0.04, 0], [3.4, 0.1, 3.4]); mk(pond, cyl, mat(0x1f6f8f), [0, 0.07, 0], [3.1, 0.04, 3.1]).castShadow = false; mk(pond, cyl, mat(0x3a9bb8, { roughness: 0.06, metalness: 0.25, transparent: true, opacity: 0.82 }), [0, 0.13, 0], [3.1, 0.05, 3.1]).castShadow = false;
-  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; mk(pond, sph, mat(i % 2 ? 0x9e9e9e : 0x8a8a8a), [Math.cos(a) * 3.3, 0.15, Math.sin(a) * 3.3], [0.28, 0.2, 0.28]); }
-  const pcl = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.3, 16), new THREE.MeshBasicMaterial({ visible: false })); pcl.position.y = 0.15; pond.add(pcl); click(pcl, 'pond', -1); COL.push({ t: 'c', x: 4.3, z: -4.2, r: 3.45 });
-  S.pond.forEach((f, i) => { const m = new THREE.Group(); mk(m, sph, mat(FISH[f.f] && f.f === 'carp' ? 0xe0443a : f.f === 'catfish' ? 0x6d5c4c : f.f === 'shrimp' ? 0xf08a6a : 0xf0a24a), [0, 0, 0], [0.32, 0.14, 0.14]); mk(m, cone, mat(0xf0a24a), [-0.36, 0, 0], [0.12, 0.2, 0.05], [0, 0, Math.PI / 2]); m.userData.fs = { a: rnd(0, 6.28), r: rnd(0.6, 2.3), sp: rnd(0.4, 0.9) * (i % 2 ? 1 : -1) }; const b = bub('🧺'); b.visible = false; b.position.y = 0.9; m.add(b); m.userData.b = b; pond.add(m); fishM.push(m); click(m, 'pond', i); });
-  // decorations
+  // pond: an oval with a sandy shore, rocks, reeds, lily pads and a little jetty at the end of its own road
+  const QX = LAY.pond.x, QZ = LAY.pond.z, pond = new THREE.Group(); pond.position.set(QX, 0, QZ); root.add(pond);
+  mk(pond, cyl, mat(0xd9c9a2), [0, 0.035, 0], [4.0, 0.08, 3.1]).castShadow = false; mk(pond, cyl, mat(0x6f5d3f), [0, 0.06, 0], [3.65, 0.06, 2.8]).castShadow = false;
+  mk(pond, cyl, mat(0x1f6f8f), [0, 0.09, 0], [3.45, 0.05, 2.6]).castShadow = false; mk(pond, cyl, mat(0x3a9bb8, { roughness: 0.06, metalness: 0.25, transparent: true, opacity: 0.82 }), [0, 0.14, 0], [3.45, 0.05, 2.6]).castShadow = false;
+  for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2, rx = Math.cos(a) * 3.7, rz = Math.sin(a) * 2.85; if (Math.hypot(rx + 1.6, rz - 2.7) < 1.0) continue; mk(pond, sph, mat(i % 2 ? 0x9e9e9e : 0x8a8a8a), [rx, 0.14, rz], [0.3, 0.2, 0.3]); }
+  for (const a of [-0.5, 0.15, 0.7, 2.6, 3.4, 4.1, 5.6]) { const cx = Math.cos(a) * 3.85, cz = Math.sin(a) * 2.95; for (let k = 0; k < 5; k++) { const dx = cx + Math.cos(k * 2.1) * 0.2, dz = cz + Math.sin(k * 2.1) * 0.2, h = 0.9 + (k % 3) * 0.25; mk(pond, cyl, mat(0x5e9a3c), [dx, h / 2, dz], [0.025, h, 0.025]); mk(pond, cyl, mat(0x6b3f23), [dx, h, dz], [0.06, 0.28, 0.06]); } }
+  for (const [x, z] of [[-1.2, -0.8], [0.9, 0.6], [1.8, -1.0], [-0.3, 1.1], [2.2, 0.5]]) { mk(pond, cyl, mat(0x4f9a4a), [x, 0.17, z], [0.3, 0.015, 0.3]).castShadow = false; if ((x * 10 | 0) % 2 === 0) mk(pond, sph, mat(0xf08aa0), [x, 0.2, z], 0.07); }
+  mk(pond, box, mat(0xa57a4c), [-1.6, 0.17, 2.3], [0.95, 0.08, 2.3]); for (const [x, z] of [[-2.0, 3.3], [-1.2, 3.3], [-2.0, 1.4], [-1.2, 1.4]]) mk(pond, cyl, mat(0x6d4c41), [x, 0.12, z], [0.06, 0.5, 0.06]);
+  const pcl = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.3, 16), new THREE.MeshBasicMaterial({ visible: false })); pcl.scale.set(1.12, 1, 0.86); pcl.position.y = 0.15; pond.add(pcl); click(pcl, 'pond', -1);
+  for (const [dx, r] of [[0, 2.45], [-1.5, 1.9], [1.7, 2.1]]) COL.push({ t: 'c', x: QX + dx, z: QZ, r });
+  S.pond.forEach((f, i) => { const m = new THREE.Group(); mk(m, sph, mat(FISH[f.f] && f.f === 'carp' ? 0xe0443a : f.f === 'catfish' ? 0x6d5c4c : f.f === 'shrimp' ? 0xf08a6a : 0xf0a24a), [0, 0, 0], [0.32, 0.14, 0.14]); mk(m, cone, mat(0xf0a24a), [-0.36, 0, 0], [0.12, 0.2, 0.05], [0, 0, Math.PI / 2]); m.userData.fs = { a: rnd(0, 6.28), r: rnd(0.6, 2.2), sp: rnd(0.4, 0.9) * (i % 2 ? 1 : -1) }; const b = bub('🧺'); b.visible = false; b.position.y = 0.9; m.add(b); m.userData.b = b; pond.add(m); fishM.push(m); click(m, 'pond', i); });
+  // decorations (each beside a road or a bed block, never on one)
   const D = S.deco;
   const tree = (x, z, s = 1) => { const hh = hash(x + ',' + z), gs = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35]; mk(root, cyl, mat(0x5a4030, { roughness: 1 }), [x, 0.9 * s, z], [0.17 * s, 1.8 * s, 0.17 * s]); [[0, 2.3, 0, 1.15], [0.55, 1.9, 0.25, 0.8], [-0.5, 2.0, -0.2, 0.85], [0.1, 2.95, 0.1, 0.7], [-0.2, 1.8, 0.5, 0.7]].forEach(([dx, dy, dz, r], i) => mk(root, sph, mat(gs[(hh + i) % 4], { roughness: 1 }), [x + dx * s, dy * s, z + dz * s], [r * s, r * 0.88 * s, r * s])); };
-  [[-8, 4], [8.5, 2], [-8.4, -1], [8.8, -9], [-9, -7]].forEach(([x, z], i) => { tree(x, z, 1 + (i % 3) * 0.12); COL.push({ t: 'c', x, z, r: 0.4 }); });
-  if (D.tree) { mk(root, cyl, mat(0x6d4c41), [-8.2, 0.8, 8], [0.2, 1.6, 0.2]); mk(root, sph, mat(0x4f9a4a), [-8.2, 2.1, 8], 1.1); for (let i = 0; i < 5; i++) mk(root, sph, mat(0xe0443a), [-8.2 + Math.cos(i * 1.3) * 0.9, 2 + (i % 2) * 0.4, 8 + Math.sin(i * 1.3) * 0.9], 0.14); }
-  if (D.flower) for (let i = 0; i < 12; i++) { const x = 6 + (i % 4) * 0.5, z = 5 + Math.floor(i / 4) * 0.5; mk(root, cyl, mat(0x4f9a4a), [x, 0.15, z], [0.02, 0.3, 0.02]); mk(root, sph, mat([0xf08aa0, 0xffcf3f, 0xf5f5f0, 0x8e44ad][i % 4]), [x, 0.35, z], 0.12); }
-  if (D.gazebo) { const g = new THREE.Group(); g.position.set(-6.5, 0, 6); root.add(g); for (const x of [-1, 1]) for (const z of [-1, 1]) mk(g, cyl, mat(0xf5f5f0), [x, 1, z], [0.08, 2, 0.08]); mk(g, cone, mat(0xb8322a), [0, 2.5, 0], [1.9, 1, 1.9], [0, Math.PI / 4, 0]); mk(g, cyl, mat(0xb08968), [0, 0.06, 0], [1.4, 0.1, 1.4]); }
-  if (D.fountain) { COL.push({ t: 'c', x: 0, z: 11.3, r: 1.3 }); const g = new THREE.Group(); g.position.set(0, 0, 11.3); root.add(g); mk(g, cyl, mat(0xcfd8dc), [0, 0.2, 0], [1.3, 0.4, 1.3]); mk(g, cyl, mat(0x4fb3e8), [0, 0.42, 0], [1.1, 0.05, 1.1]); mk(g, cyl, mat(0xcfd8dc), [0, 0.8, 0], [0.18, 1, 0.18]); mk(g, sph, mat(0x8ad4f5), [0, 1.4, 0], 0.3); }
-  if (D.windmill) { COL.push({ t: 'c', x: 9, z: -3, r: 1 }); const g = new THREE.Group(); g.position.set(9, 0, -3); root.add(g); mk(g, cone, mat(0xf5f5f0), [0, 1.8, 0], [1, 3.6, 1]); const bl = new THREE.Group(); bl.position.set(0, 3.2, 0.9); g.add(bl); for (let i = 0; i < 4; i++) { const a = new THREE.Group(); a.rotation.z = i * Math.PI / 2; bl.add(a); mk(a, box, mat(0xb08968), [0, 1, 0], [0.16, 2, 0.04]); } bl.userData.spin = 1; root.userData.wm = bl; }
+  [[-10.2, 5], [11.4, 2.2], [-12.2, -7.5], [12.2, -8.4], [-10.6, 12], [11.2, 11], [-3.6, -12.4]].forEach(([x, z], i) => { tree(x, z, 1 + (i % 3) * 0.12); COL.push({ t: 'c', x, z, r: 0.4 }); });
+  if (D.tree) { mk(root, cyl, mat(0x6d4c41), [-10.2, 0.8, 9], [0.2, 1.6, 0.2]); mk(root, sph, mat(0x4f9a4a), [-10.2, 2.1, 9], 1.1); for (let i = 0; i < 5; i++) mk(root, sph, mat(0xe0443a), [-10.2 + Math.cos(i * 1.3) * 0.9, 2 + (i % 2) * 0.4, 9 + Math.sin(i * 1.3) * 0.9], 0.14); COL.push({ t: 'c', x: -10.2, z: 9, r: 0.4 }); }
+  if (D.flower) for (let i = 0; i < 12; i++) { const x = 8.6 + (i % 4) * 0.5, z = 6 + Math.floor(i / 4) * 0.5; mk(root, cyl, mat(0x4f9a4a), [x, 0.15, z], [0.02, 0.3, 0.02]); mk(root, sph, mat([0xf08aa0, 0xffcf3f, 0xf5f5f0, 0x8e44ad][i % 4]), [x, 0.35, z], 0.12); }
+  if (D.gazebo) { const g = new THREE.Group(); g.position.set(-10, 0, 6.8); root.add(g); for (const x of [-1, 1]) for (const z of [-1, 1]) mk(g, cyl, mat(0xf5f5f0), [x, 1, z], [0.08, 2, 0.08]); mk(g, cone, mat(0xb8322a), [0, 2.5, 0], [1.9, 1, 1.9], [0, Math.PI / 4, 0]); mk(g, cyl, mat(0xb08968), [0, 0.06, 0], [1.4, 0.1, 1.4]); }
+  if (D.fountain) { const F = LAY.fountain; COL.push({ t: 'c', x: F.x, z: F.z, r: 1.3 }); const g = new THREE.Group(); g.position.set(F.x, 0, F.z); root.add(g); mk(g, cyl, mat(0xcfd8dc), [0, 0.2, 0], [1.3, 0.4, 1.3]); mk(g, cyl, mat(0x4fb3e8), [0, 0.42, 0], [1.1, 0.05, 1.1]); mk(g, cyl, mat(0xcfd8dc), [0, 0.8, 0], [0.18, 1, 0.18]); mk(g, sph, mat(0x8ad4f5), [0, 1.4, 0], 0.3); }
+  if (D.windmill) { COL.push({ t: 'c', x: 11.6, z: 6.5, r: 1 }); const g = new THREE.Group(); g.position.set(11.6, 0, 6.5); root.add(g); mk(g, cone, mat(0xf5f5f0), [0, 1.8, 0], [1, 3.6, 1]); const bl = new THREE.Group(); bl.position.set(0, 3.2, 0.9); g.add(bl); for (let i = 0; i < 4; i++) { const a = new THREE.Group(); a.rotation.z = i * Math.PI / 2; bl.add(a); mk(a, box, mat(0xb08968), [0, 1, 0], [0.16, 2, 0.04]); } bl.userData.spin = 1; root.userData.wm = bl; }
   // bubbles for ready crops live on the plot objects
   plotObjs.forEach(o => { const b = bub('🧺'); b.position.set(0, 1.9, 0); b.visible = false; o.g.add(b); o.b = b; });
 }
@@ -392,17 +488,18 @@ function syncPlots() {
     if (o.key !== key) {
       o.key = key; if (o.crop) { o.g.remove(o.crop); o.crop = null; }
       o.g.children[0].material = soilMat(p.w ? 1 : 0);
-      if (p.c) { o.crop = cropMesh(p.c); o.crop.position.y = 0.2; o.crop.scale.setScalar(0.28 + stage * 0.24); o.g.add(o.crop); }
+      if (p.c) { o.crop = cropField(p.c, stage); o.crop.position.y = 0.2; o.g.add(o.crop); }
     }
     o.b.visible = !!(p.c && cropReady(p)); if (o.b.visible) o.b.position.y = 1.9 + Math.sin(performance.now() / 250 + i) * 0.12;
   });
 }
 function anim(dt) {
   const t = performance.now() / 1000;
+  const bg = root && root.userData.barn; if (bg) { const tr = used() <= 0 ? 0 : Math.min(4, Math.ceil(used() / cap() * 4)); if (tr !== bg.userData.tier) fillBarn(bg, tr); }
   animM.forEach((m, i) => { const a = S.pen[i]; if (!a) return; const n = m.userData.pn; n.w -= dt;
     if (a.st === 'ready' || n.w > 0) { m.position.y = a.st === 'ready' ? Math.abs(Math.sin(t * 4 + i)) * 0.12 : 0; } else { if (Math.hypot(n.tx - m.position.x, n.tz - m.position.z) < 0.15) { n.tx = rnd(-2.7, 2.7); n.tz = rnd(-2.1, 2.1); n.w = rnd(1, 4); } const dx = n.tx - m.position.x, dz = n.tz - m.position.z, d = Math.hypot(dx, dz) || 1; m.position.x += dx / d * dt * 0.7; m.position.z += dz / d * dt * 0.7; m.rotation.y = Math.atan2(dx, dz); m.position.y = Math.abs(Math.sin(t * 8 + i)) * 0.05; }
     m.userData.b.visible = a.st === 'ready'; });
-  fishM.forEach((m, i) => { const f = S.pond[i]; if (!f) return; const s = m.userData.fs; s.a += dt * s.sp; m.position.set(Math.cos(s.a) * s.r, 0.17, Math.sin(s.a) * s.r); m.rotation.y = -s.a + (s.sp > 0 ? -Math.PI / 2 : Math.PI / 2); const sc = 0.55 + 0.45 * Math.min(1, f.p / FISH[f.f].sec); m.userData.b.visible = fishReady(f); m.scale.setScalar(sc * 1.4); });
+  fishM.forEach((m, i) => { const f = S.pond[i]; if (!f) return; const s = m.userData.fs; s.a += dt * s.sp; m.position.set(Math.cos(s.a) * s.r * 1.35, 0.17, Math.sin(s.a) * s.r); m.rotation.y = -s.a + (s.sp > 0 ? -Math.PI / 2 : Math.PI / 2); const sc = 0.55 + 0.45 * Math.min(1, f.p / FISH[f.f].sec); m.userData.b.visible = fishReady(f); m.scale.setScalar(sc * 1.4); });
   if (root && root.userData.wm) root.userData.wm.rotation.z += dt * 1.2;
 }
 const KF = [   // hour, sky top, horizon, sun colour, sun power, ambient, sun height
@@ -460,7 +557,7 @@ function resolve(x, z, r) {
     if (c.t === 'c') { const dx = x - c.x, dz = z - c.z, d = Math.hypot(dx, dz), m = r + c.r; if (d < m && d > 1e-5) { x = c.x + dx / d * m; z = c.z + dz / d * m; } }
     else { const cx = Math.max(c.x - c.hw, Math.min(c.x + c.hw, x)), cz = Math.max(c.z - c.hd, Math.min(c.z + c.hd, z)), dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz); if (d < r) { if (d > 1e-5) { x = cx + dx / d * r; z = cz + dz / d * r; } else { z = c.z + (z > c.z ? c.hd + r : -c.hd - r); } } }
   }
-  return [Math.max(-11.5, Math.min(11.5, x)), Math.max(-8, Math.min(12.5, z))];
+  return [Math.max(-12.8, Math.min(12.8, x)), Math.max(-8.2, Math.min(13.4, z))];
 }
 const V = { x: 0, z: 0 }, CF = { x: 0, z: 0, yaw: 0, pitch: 0.62, init: 0 };
 function stepPlayer(dt) {
@@ -491,7 +588,6 @@ function followCam(dt) {
   camera.position.set(CF.x + Math.sin(CF.yaw) * cp * CAM.dist, 1.3 + Math.sin(CF.pitch) * CAM.dist, CF.z + Math.cos(CF.yaw) * cp * CAM.dist); camera.lookAt(CF.x, 1.1, CF.z);
   sunL.target.position.set(CF.x * 0.5, 0, CF.z * 0.5);
 }
-const plotPos = i => ({ x: ((i % 4) - 1.5) * 2.2, z: 7.5 - Math.floor(i / 4) * 2.2 });
 function water(i) { const p = S.plots[i]; if (p.c && !p.w) { p.w = 1; sfx(420); toast('💧 รดน้ำแล้ว โตเร็วขึ้น 1.5 เท่า'); } }
 function targets() {
   const c = [], add = (d, icon, label, fn) => c.push({ d, icon, label, fn }), at = (x, z) => Math.hypot(P.x - x, P.z - z);
@@ -502,14 +598,14 @@ function targets() {
     else if (!p.w) add(d, '💧', `รดน้ำ ${CROPS[p.c].n}`, () => water(i));
     else add(d + 0.8, CROPS[p.c].i, `${CROPS[p.c].n} กำลังโต`, () => { const left = Math.ceil((CROPS[p.c].sec - p.p) / 1.5); toast(`${CROPS[p.c].i} อีก ${left >= 60 ? Math.ceil(left / 60) + ' นาที' : left + ' วิ'}`); });
   });
-  if (P.x > -8.9 && P.x < -0.3 && P.z > -7.4 && P.z < -0.9) {
+  if (Math.abs(P.x - LAY.pen.x) < 4.6 && Math.abs(P.z - LAY.pen.z) < 3.7) {
     const rd = S.pen.filter(a => a.st === 'ready').length;
     if (rd) add(0.4, '🧺', `เก็บผลผลิตสัตว์ (${rd})`, () => A.collall()); else add(1.2, '🐾', 'ดูคอกสัตว์', () => openTab('pen'));
   }
-  if (at(4.3, -4.2) < 5) { const rd = S.pond.filter(fishReady).length; if (rd) add(0.4, '🎣', `จับปลา (${rd})`, () => { A.fishall(); build3d(); }); else add(1.2, '🐟', 'ดูบ่อปลา', () => openTab('pond')); }
+  if (at(LAY.pond.x - 1.6, LAY.pond.z + 1.2) < 4.6) { const rd = S.pond.filter(fishReady).length; if (rd) add(0.4, '🎣', `จับปลา (${rd})`, () => { A.fishall(); build3d(); }); else add(1.2, '🐟', 'ดูบ่อปลา', () => openTab('pond')); }
   if (at(0, -9) < 3.2) add(at(0, -9), '🏪', 'ตลาด', () => openTab('market'));
-  if (at(-6, -9.3) < 3.2) add(at(-6, -9.3), '🏚️', 'ยุ้งฉาง', () => openTab('barn'));
-  if (S.u.work && at(6, -9.3) < 3.2) add(at(6, -9.3), '🏭', 'โรงงานแปรรูป', () => openTab('work'));
+  if (at(LAY.barn.x, LAY.barn.z + 1.4) < 3.4) add(at(LAY.barn.x, LAY.barn.z + 1.4), '🏚️', 'ยุ้งฉาง', () => openTab('barn'));
+  if (S.u.work && at(LAY.work.x, LAY.work.z + 1.4) < 3.2) add(at(LAY.work.x, LAY.work.z + 1.4), '🏭', 'โรงงานแปรรูป', () => openTab('work'));
   return c.sort((a, b) => a.d - b.d)[0] || null;
 }
 function doAct() { if (curT) { curT.fn(); render(); hud(); } }
@@ -562,7 +658,7 @@ function loop(now) {
     const lbl = $('actlbl'), b = $('act'), key = t ? t.icon + t.label : '';
     if (loop.k !== key) { loop.k = key; b.textContent = t ? t.icon : '✋'; b.classList.toggle('idle', !t); lbl.hidden = !t; lbl.textContent = t ? t.label : ''; }
     renderer.render(scene, camera);
-    acc += dt; if (acc > 0.5) { acc = 0; hud(); if (tab && (tab === 'pen' || tab === 'pond' || tab === 'work' || tab === 'farm')) render(); } saveT += dt; if (saveT > 3) { saveT = 0; save(); }
+    acc += dt; if (acc > 0.5) { acc = 0; hud(); if (tab && (tab === 'pen' || tab === 'pond' || tab === 'work' || tab === 'farm' || tab === 'barn')) render(); } saveT += dt; if (saveT > 3) { saveT = 0; save(); }
   }
   requestAnimationFrame(loop);
 }
