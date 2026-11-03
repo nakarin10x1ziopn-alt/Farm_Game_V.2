@@ -69,6 +69,13 @@ const DECOS = [
   { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 53 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 107 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 320 },
   { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 800 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 1600 },
 ];
+// things worth having in the house (kept to four so it stays simple); each does one clear thing
+const HOME_ITEMS = [
+  { k: 'bed', n: 'เตียงนุ่ม', i: '🛏️', price: 90, d: 'นอนสบายขึ้น เหนื่อยช้าลง 30% ตลอดวัน', why: 'ควรมีเป็นอย่างแรก' },
+  { k: 'cafe', n: 'มุมกาแฟและชา', i: '☕', price: 110, d: 'ชงเครื่องดื่มกู้แรงได้ทุกเวลา แก้วละ 5 ฿ ได้ +25 พลังงาน', why: 'เหมาะช่วงงานเยอะ' },
+  { k: 'store', n: 'ตู้เก็บของ', i: '🗄️', price: 140, d: 'ยุ้งฉางจุของได้เพิ่ม +30 ชิ้น', why: 'เมื่อยุ้งเริ่มแน่น' },
+  { k: 'vase', n: 'แจกันดอกไม้และพรม', i: '🌻', price: 70, d: 'ชื่อเสียงเพิ่ม ราคาขายทุกอย่าง +0.4%', why: 'ตกแต่งให้บ้านน่าอยู่' },
+];
 const DAY = 300; // the old fixed day length, only used to convert older saves
 // how long a farm day lasts in real time. A day runs 09:00 to 09:00 in game time.
 const TM = { fast: { n: 'เร็ว', len: 600, d: '1 วันในเกม = 10 นาทีจริง' }, normal: { n: 'ปกติ', len: 1200, d: '1 วันในเกม = 20 นาทีจริง' } };
@@ -79,7 +86,7 @@ const API = (window.FARM2_API || '').replace(/\/$/, '');
 let S = null, slot = 0, online = false;
 let DEV = (() => { try { let d = localStorage.getItem('raisukjai2-dev'); if (!d) { d = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('raisukjai2-dev', d); } return d; } catch (e) { return 'p' + Math.random().toString(36).slice(2, 12); } })();
 const fresh = name => ({ v: 1, name: name || 'ชาวไร่', money: 300, xp: 0, lvl: 1, t: 0, last: Date.now(), tip: 0, sel: 'carrot', px: 0, pz: 10.5, plots: Array.from({ length: PLOTS[0] }, () => ({ c: null, p: 0, w: 0, f: 0 })),
-  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 2, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, dayN: 1, dayT: 0, tm: 'normal', deco: {}, job: null, stats: { earned: 0 } });
+  pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 2, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, dayN: 1, dayT: 0, tm: 'normal', en: 100, home: {}, deco: {}, job: null, stats: { earned: 0 } });
 // A save lives in the browser twice (localStorage + IndexedDB) so one being wiped does not lose the farm. The key no longer depends on the
 // player code; the old key (with the code) is still read so earlier saves keep working. The server copy uses the player code.
 const LKEY = n => `raisukjai2-slot${n}`, LKEY_OLD = n => `raisukjai2-${DEV}-s${n}`, sid = n => `${DEV}_${n}`;
@@ -117,8 +124,8 @@ let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { 
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
 const day = () => S.dayN;
 const xpNeed = l => Math.round(50 * Math.pow(l, 1.5));
-const cap = () => BARNS[S.u.barn], used = () => Object.values(S.inv).reduce((a, b) => a + b, 0), room = () => cap() - used();
-const prestige = () => Object.keys(S.deco).length * 0.3 + (S.deco.fountain ? 0.5 : 0);
+const cap = () => BARNS[S.u.barn] + (S.home && S.home.store ? 30 : 0), used = () => Object.values(S.inv).reduce((a, b) => a + b, 0), room = () => cap() - used();
+const prestige = () => Object.keys(S.deco).length * 0.3 + (S.deco.fountain ? 0.5 : 0) + (S.home && S.home.vase ? 0.4 : 0);
 const hash = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
 const factor = (id, d) => 0.985 + (hash(id + ':' + d) % 1000) / 1000 * 0.05;       // 0.985 .. 1.035, a new price every farm day
 const bonus = () => 1 + [0, 0.04, 0.08][S.u.truck] + prestige() / 100;
@@ -152,12 +159,16 @@ const catOf = id => (CROPS[id] ? (CROPS[id].k === 'fruit' ? 'ผลไม้' : 
 const CATS = [['ผัก', '🥕'], ['ผลไม้', '🍎'], ['ผลผลิตสัตว์', '🥚'], ['ปลาและอาหารทะเล', '🐟'], ['แปรรูป', '🥫']];
 const isGood = id => factor(id, day()) >= 1.005;
 function toast(t) { const d = document.createElement('div'); d.className = 't'; d.textContent = t; $('toast').appendChild(d); while ($('toast').children.length > 3) $('toast').firstChild.remove(); setTimeout(() => d.classList.add('out'), 2200); setTimeout(() => d.remove(), 2700); }
-function gainXp(n) { S.xp += n; while (S.xp >= xpNeed(S.lvl)) { S.xp -= xpNeed(S.lvl); S.lvl++; const un = [].concat(Object.values(CROPS).filter(c => c.lv === S.lvl).map(c => c.n), Object.values(ANIMALS).filter(a => a.lv === S.lvl).map(a => a.n), Object.values(FISH).filter(f => f.lv === S.lvl).map(f => f.n)); toast(`🎉 เลเวล ${S.lvl}!` + (un.length ? ' ปลดล็อก ' + un.join(' · ') : '')); } }
+// energy: it drains slowly while you work; tired (< 25) means slower walking and 20 % less xp, rested (>= 80) gives 10 % more xp. Sleeping or a nap at home restores it
+const TIRED = 25;
+const energyRate = () => 0.055 * (S.home && S.home.bed ? 0.7 : 1);
+function gainXp(n) { n *= S.en < TIRED ? 0.8 : S.en >= 80 ? 1.1 : 1; S.xp += n; while (S.xp >= xpNeed(S.lvl)) { S.xp -= xpNeed(S.lvl); S.lvl++; const un = [].concat(Object.values(CROPS).filter(c => c.lv === S.lvl).map(c => c.n), Object.values(ANIMALS).filter(a => a.lv === S.lvl).map(a => a.n), Object.values(FISH).filter(f => f.lv === S.lvl).map(f => f.n)); toast(`🎉 เลเวล ${S.lvl}!` + (un.length ? ' ปลดล็อก ' + un.join(' · ') : '')); } }
 function spend(n) { if (S.money < n) { toast('เงินไม่พอ'); return false; } S.money -= n; return true; }
 function addItem(id, n) { const k = Math.min(n, room()); if (k <= 0) { toast('ยุ้งฉางเต็ม! ไปขายที่ตลาดหรืออัปเกรดยุ้งฉาง'); return 0; } S.inv[id] = (S.inv[id] || 0) + k; return k; }
 
 // ---------------- simulation ----------------
 function update(dt) {
+  if (!update.nd) { S.en = Math.max(0, S.en - dt * energyRate()); if (S.en < TIRED && !S.tiredWarn) { S.tiredWarn = 1; toast('😮‍💨 เริ่มเหนื่อยแล้ว กลับไปพักที่บ้านได้นะ'); } else if (S.en >= TIRED + 10) S.tiredWarn = 0; }
   S.t += dt; S.dayT += dt; { const L = dayLen(); while (S.dayT >= L) { S.dayT -= L; S.dayN++; } }
   const sp = S.u.sprinkler ? 1.5 : 1;
   for (const p of S.plots) if (p.c) { if (S.u.sprinkler) p.w = 1; p.p = Math.min(CROPS[p.c].sec, p.p + dt * (p.w ? 1.5 : 1) * (p.f ? 1.35 : 1)); }
@@ -217,6 +228,20 @@ function buyUp(k) {
   build3d();
 }
 function buyDeco(id) { const d = DECOS.find(x => x.id === id); if (S.deco[id]) return; if (!spend(d.price)) return; S.deco[id] = 1; sfx(900); toast(`${d.i} ${d.n} ตกแต่งฟาร์มแล้ว ชื่อเสียง +0.3%`); build3d(); }
+const hhmm = h => { const m = Math.floor(h * 60) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+// lights out: the screen fades, the farm keeps running for the hours you sleep (crops grow, animals produce), then it is morning
+function doSleep(kind) {
+  const h = hourNow(); let hrs = 1;
+  if (kind === 'night') { if (!(h >= 19 || h < 5)) { toast('ยังไม่ง่วง นอนข้ามคืนได้ตั้งแต่ 19:00 (งีบ 1 ชั่วโมงได้ทุกเวลา)'); return; } hrs = (6.5 - h + 24) % 24; }
+  closeSheet();
+  let ov = $('sleepov'); if (!ov) { ov = document.createElement('div'); ov.id = 'sleepov'; ov.style.cssText = 'position:absolute;inset:0;z-index:60;background:#02030a;color:#cfd8ff;display:flex;align-items:center;justify-content:center;font-size:26px;opacity:0;pointer-events:none;transition:opacity .9s;text-align:center;padding:20px'; $('app').appendChild(ov); }
+  ov.textContent = kind === 'night' ? '💤 กำลังนอนหลับ...' : '😴 งีบหลับ...'; ov.style.pointerEvents = 'auto'; ov.style.opacity = '1';
+  setTimeout(() => {
+    const before = readyCount(); update.nd = 1; update(hrs / 24 * dayLen()); update.nd = 0; S.en = kind === 'night' ? 100 : Math.min(100, S.en + 25); LT.key = ''; save();
+    const nw = readyCount() - before; toast(kind === 'night' ? `☀️ ตื่นแล้ว สดชื่นเต็มที่ (${hhmm(hourNow())})` : `😴 งีบเสร็จ พลังงาน +25 (${hhmm(hourNow())})`); if (nw > 0) setTimeout(() => toast(`ระหว่างพัก มีผลผลิตพร้อมเก็บ ${nw} อย่าง`), 900);
+    ov.style.opacity = '0'; setTimeout(() => { ov.style.pointerEvents = 'none'; }, 950); hud();
+  }, 1300);
+}
 function deposit(n) { n = Math.min(n, S.money); if (n <= 0) return; S.money -= n; S.bank += n; sfx(500); }
 function withdraw(n) { n = Math.min(n, S.bank); if (n <= 0) return; S.bank -= n; S.money += n; sfx(500); }
 
@@ -324,7 +349,7 @@ function render() {
       $('stitle').textContent = '⭐ เอาเงินไปทำอะไรดี';
       const ups = UPS.map(u => { const l = S.u[u.k], done = l >= u.max, lk = u.lv && S.lvl < u.lv; return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${u.i}</div><div><h4>${u.n}${l ? `<span class="pill">ระดับ ${l}</span>` : ''}</h4><p>${done ? 'สูงสุดแล้ว' : u.desc(l)}${lk ? ` · ต้องเลเวล ${u.lv}` : ''}</p></div>${done ? '<span class="pill">✓</span>' : lk ? `<span class="pill">🔒 Lv.${u.lv}</span>` : `<button class="btn" data-a="up" data-v="${u.k}" ${S.money >= u.cost[l] ? '' : 'disabled'}>${fmt(u.cost[l])} ฿</button>`}</div>`; }).join('');
       const decos = DECOS.map(d => `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>ตกแต่งฟาร์ม · ชื่อเสียง +0.3% ราคาขาย${d.id === 'fountain' ? ' (+0.8%)' : ''}</p></div>${S.deco[d.id] ? '<span class="pill">✓ มีแล้ว</span>' : `<button class="btn" data-a="deco" data-v="${d.id}" ${S.money >= d.price ? '' : 'disabled'}>${fmt(d.price)} ฿</button>`}</div>`).join('');
-      const tmc = `<h5>⏱️ ความเร็วเวลาในเกม</h5><div class="row">${Object.keys(TM).map(k => `<button class="btn${S.tm === k ? '' : ' ghost'}" data-a="tmode" data-v="${k}">${TM[k].n}<br><small>${TM[k].d}</small></button>`).join('')}</div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">เวลากลางคืนมีดวงจันทร์และดาว ลากกล้องลงต่ำ ๆ จะเห็นท้องฟ้า · ผักและสัตว์โตตามเวลาจริงเหมือนเดิม ความเร็วนี้เปลี่ยนแค่ความยาวของ 1 วัน (ราคา ดอกเบี้ย โปรประจำวัน)</p>`;
+      const tmc = `<div class="card"><div class="ci">🏠</div><div><h4>บ้านของคุณ</h4><p>พลังงาน ⚡ ${Math.round(S.en)} · นอนและพักผ่อนได้ที่นี่</p></div><button class="btn" data-a="tab" data-v="home">เปิด</button></div><h5>⏱️ ความเร็วเวลาในเกม</h5><div class="row">${Object.keys(TM).map(k => `<button class="btn${S.tm === k ? '' : ' ghost'}" data-a="tmode" data-v="${k}">${TM[k].n}<br><small>${TM[k].d}</small></button>`).join('')}</div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">เวลากลางคืนมีดวงจันทร์และดาว ลากกล้องลงต่ำ ๆ จะเห็นท้องฟ้า · ผักและสัตว์โตตามเวลาจริงเหมือนเดิม ความเร็วนี้เปลี่ยนแค่ความยาวของ 1 วัน (ราคา ดอกเบี้ย โปรประจำวัน)</p>`;
       return tmc + `<p style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">นอกจากซื้อเมล็ด สัตว์ ลูกปลา และอาหารสัตว์ เงินยังใช้ทำสิ่งเหล่านี้ได้</p><h5>อัปเกรดฟาร์ม</h5>${ups}<h5>🏦 ธนาคารสุขใจ (ดอกเบี้ย 1% ต่อวันของฟาร์ม)</h5>
       <div class="card"><div class="ci">🏦</div><div><h4>เงินฝาก ${fmt(S.bank)} ฿</h4><p>ฝากได้ไม่เกิน 200,000 ฿ ถอนได้ทุกเมื่อ</p></div></div>
       <div class="row"><button class="btn ghost" data-a="dep" data-v="1000" ${S.money >= 1 ? '' : 'disabled'}>ฝาก 1,000</button><button class="btn ghost" data-a="dep" data-v="all">ฝากทั้งหมด</button><button class="btn ghost" data-a="wd" data-v="all" ${S.bank ? '' : 'disabled'}>ถอนทั้งหมด</button></div>
@@ -336,6 +361,19 @@ function render() {
       const j = S.job, r = j && RECIPES.find(x => x.id === j.id);
       const cur = j ? `<div class="card"><div class="ci">${ITEMS[j.id].i}</div><div><h4>กำลังทำ ${ITEMS[j.id].n}</h4><p>${jobReady() ? '<b class="up">เสร็จแล้ว</b>' : `อีก ${Math.ceil(r.sec - j.t)} วิ`}</p></div>${jobReady() ? '<button class="btn" data-a="jobget">รับ</button>' : ''}</div>` : '';
       return cur + '<h5>สูตร (ทำได้ทีละอย่าง)</h5>' + RECIPES.map(r => { const ok = !S.job && Object.keys(r.in).every(k => (S.inv[k] || 0) >= r.in[k]); const cost = Object.keys(r.in).reduce((a, k) => a + ITEMS[k].base * r.in[k], 0); return `<div class="card"><div class="ci">${ITEMS[r.id].i}</div><div><h4>${ITEMS[r.id].n} <span class="pill">ขาย ~${price(r.id)} ฿</span></h4><p>ใช้ ${Object.keys(r.in).map(k => `${ITEMS[k].i}${ITEMS[k].n} ×${r.in[k]} (มี ${S.inv[k] || 0})`).join(' + ')} · ${r.sec} วิ · วัตถุดิบขายสด ~${fmt(cost)} ฿</p></div><button class="btn" data-a="mk" data-v="${r.id}" ${ok ? '' : 'disabled'}>ทำ</button></div>`; }).join('');
+    },
+    home() {
+      $('stitle').textContent = '🏠 บ้านของคุณ';
+      const e = Math.round(S.en), st = e >= 80 ? ['สดชื่น', '#7ccf5a', 'ได้ XP เพิ่ม 10%'] : e >= TIRED ? ['ปกติ', '#ffcf3f', 'พักเมื่อเริ่มล้าได้'] : ['อ่อนล้า', '#ff7a6a', 'เดินช้าลงและได้ XP น้อยลง 20% ควรพักเลย'];
+      const h = hourNow(), canNight = h >= 19 || h < 5, ratio = used() / cap(), order = ['bed', ratio > 0.6 ? 'store' : 'cafe', ratio > 0.6 ? 'cafe' : 'store', 'vase'], rec = order.find(k => !S.home[k]);
+      let o = `<p ${NOTE}>บ้านไว้พักผ่อน พลังงาน ⚡ ลดลงเรื่อย ๆ ตอนทำงาน ถ้าเหนื่อยจะเดินช้าลงและได้ XP น้อยลง กลับมานอนหรืองีบที่นี่เพื่อฟื้นพลังงาน ผักและสัตว์ยังโตระหว่างที่นอน</p>
+      <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">⚡</div><div><h4>พลังงาน ${e}/100 <span class="pill" style="color:${st[1]}">${st[0]}</span></h4><div class="bar" style="margin-top:6px"><i style="width:${e}%;background:${st[1]}"></i></div><p>${st[2]} · ตอนนี้ ${hhmm(h)}</p></div></div>
+      <div class="row"><button class="btn" data-a="nap">😴 งีบ 1 ชั่วโมง (+25)</button><button class="btn${canNight ? '' : ' ghost'}" data-a="sleep">💤 นอนข้ามคืน</button></div>
+      <p ${NOTE}>${canNight ? 'นอนข้ามคืนแล้วตื่น 06:30 พลังงานเต็ม' : 'นอนข้ามคืนได้ตั้งแต่ 19:00 ถึงตี 5 · งีบได้ทุกเวลา'}</p>
+      <h5>🧰 ของในบ้านที่ควรมี (มีแค่ 4 อย่าง ซื้อเมื่อพร้อม)</h5>`;
+      o += HOME_ITEMS.map(it => `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n}${rec === it.k ? '<span class="pill">✨ แนะนำ</span>' : ''}</h4><p>${it.d}${S.home[it.k] ? '' : ` · ${it.why}`}</p></div>${S.home[it.k] ? '<span class="pill">✓ มีแล้ว</span>' : `<button class="btn" data-a="homebuy" data-v="${it.k}" ${S.money >= it.price ? '' : 'disabled'}>${fmt(it.price)} ฿</button>`}</div>`).join('');
+      if (S.home.cafe) o += `<div class="row"><button class="btn ghost" data-a="sip" ${S.en >= 95 ? 'disabled' : ''}>☕ ชงเครื่องดื่ม (5 ฿ · +25 พลังงาน)</button></div>`;
+      return o;
     },
     barn() {
       $('stitle').textContent = '🏚️ ยุ้งฉาง';
@@ -360,6 +398,9 @@ function render() {
 }
 Object.assign(A, {
   tab: d => { if (d.m) mktTab = d.m; openTab(d.v); }, close: closeSheet,
+  nap: () => doSleep('nap'), sleep: () => doSleep('night'),
+  sip: () => { if (S.en >= 95) { toast('ยังสดชื่นอยู่ ไว้ค่อยดื่มนะ'); return; } if (spend(5)) { S.en = Math.min(100, S.en + 25); sfx(660); toast('☕ ชื่นใจ พลังงาน +25'); } },
+  homebuy: d => { const it = HOME_ITEMS.find(x => x.k === d.v); if (!it || S.home[it.k]) return; if (!spend(it.price)) return; S.home[it.k] = 1; sfx(900); toast(`${it.i} ${it.n} มาอยู่ในบ้านแล้ว`); build3d(); },
   tmode: d => { if (!TM[d.v] || d.v === S.tm) return; const fr = S.dayT / dayLen(); S.tm = d.v; S.dayT = fr * dayLen(); LT.key = ''; toast(`⏱️ เวลาในเกม: ${TM[d.v].n} (${TM[d.v].d})`); }, tipok: () => { $('tip').hidden = true; if (S) { S.tip = 1; save(); } },
   sel: d => { S.sel = d.v; toast(`เลือก ${CROPS[d.v].n} แตะแปลงว่างเพื่อปลูก`); },
   plantall: () => { let n = 0; S.plots.forEach((p, i) => { if (!p.c && canPlant(S.sel) && CROPS[S.sel].lv <= S.lvl) { plant(i); n++; } }); if (!n) toast('ปลูกไม่ได้ (เงินไม่พอหรือยังไม่ปลดล็อก)'); },
@@ -395,7 +436,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-a]')
 // ---------------- HUD ----------------
 function hud() {
   if (!S) return;
-  $('money').textContent = fmt(S.money) + ' ฿'; $('lv').textContent = `${S.name} · Lv.${S.lvl}`; $('xp').style.width = (S.xp / xpNeed(S.lvl) * 100) + '%';
+  $('money').textContent = fmt(S.money) + ' ฿'; $('lv').textContent = `${S.name} · Lv.${S.lvl} · ${S.en < TIRED ? '😮‍💨' : '⚡'}${Math.round(S.en)}`; $('xp').style.width = (S.xp / xpNeed(S.lvl) * 100) + '%';
   const m = Math.floor(hourNow() * 60), hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
   $('day').textContent = `วันที่ ${day()} · ${hh}:${mm}`; $('barn').textContent = `🏚️ ${used()}/${cap()} ›`;
   const c = CROPS[S.sel]; $('seedchip').textContent = `${c.i} ${c.n} ${(S.seeds[S.sel] || 0) > 0 ? '🎒×' + S.seeds[S.sel] : seedUnit(S.sel) + '฿'} ▾`;
@@ -492,7 +533,7 @@ function animalMesh(id) {
 const LAY = {
   plotX: [-3.4, 3.4, -5.6, 5.6], plotZ: 10.2, plotDz: 2.2,
   barn: { x: -7.5, z: -10.5 }, stall: { x: 0, z: -10 }, work: { x: 7.5, z: -10.5 }, plaza: { x: 0, z: -6.6 },
-  pen: { x: -8.6, z: -2.8 }, pond: { x: 9.2, z: -3.6 }, truck: { x: 5.2, z: 12.9 }, fountain: { x: -4.8, z: 12.6 },
+  pen: { x: -8.6, z: -2.8 }, pond: { x: 9.2, z: -3.6 }, truck: { x: 5.2, z: 12.9 }, fountain: { x: 8.8, z: 12.3 }, house: { x: -10.2, z: 11.2 },
 };
 const ROAD_LINES = [
   { w: 2.3, pts: [[0.1, 13.8], [0.5, 10.5], [-0.5, 6.5], [0.4, 2.4], [0, -1.4], [0, -4.2], [0, -6.6]] },      // farm gate -> plaza: the main road, a gentle S between the two plot blocks
@@ -501,6 +542,7 @@ const ROAD_LINES = [
   { w: 1.8, pts: [[-1.8, -7.2], [-4, -8.2], [-6, -8.5], [-7.5, -8.1]] },                                        // plaza -> barn
   { w: 1.8, pts: [[1.8, -7.2], [4, -8.2], [6, -8.5], [7.5, -8.1]] },                                            // plaza -> workshop
   { w: 1.6, pts: [[0.3, 12.3], [2.4, 12.6], [4.2, 12.4]] },                                                     // spur to the truck bay
+  { w: 1.7, pts: [[-0.1, 12.6], [-2.8, 13.0], [-5.4, 12.9], [-7.5, 12.4]] },                                    // to the front door of the house
 ];
 const ROADPTS = [];   // sampled road centre points, so grass, flowers and trees keep off the roads
 function roadMesh(pts, w, y, material, uvScale) {
@@ -552,6 +594,28 @@ function fillBarn(g, tier) {
   if (tier >= 3) { for (const [x, z] of [[-0.9, zf + 0.5], [-0.35, zf + 0.6]]) mk(f, sph, sack, [x, 0.26, z], [0.34, 0.3, 0.3]); box_(x0 + 1.5, zf); }
   if (tier >= 4) { box_(x0 + 2.25, zf); box_(x0 + 1.5, zf, 0.5); for (const [x, z] of [[0.3, zf + 0.6], [0.85, zf + 0.5], [0.55, zf + 0.5]]) mk(f, sph, sack, [x, 0.26, z], [0.34, 0.3, 0.3]); mk(f, sph, sack, [0.55, 0.62, zf + 0.5], [0.32, 0.28, 0.28]); }
 }
+// the house: a small cottage west of the gate. Its door faces the road; what you buy for it shows outside (flower boxes, a coffee table, a storage cabinet)
+function buildHouse(parent, click) {
+  const H = S.home, g = new THREE.Group(); g.position.set(LAY.house.x, 0, LAY.house.z); g.rotation.y = Math.PI / 2; parent.add(g);
+  const wall = mat(0xf2e4c4), base = mat(0x8b6b4a), roofM = mat(0xb4472f), wood = mat(0x7a5638), white = mat(0xf5f1e6), W = 4.0, D = 3.4, ang = 0.62, hh = D / 2 * Math.tan(ang);
+  mk(g, box, wall, [0, 1.15, 0], [W, 2.3, D]); mk(g, box, base, [0, 0.14, 0], [W + 0.12, 0.28, D + 0.12]);
+  const sh = new THREE.Shape(); sh.moveTo(-D / 2, 0); sh.lineTo(D / 2, 0); sh.lineTo(0, hh); const gab = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: W, bevelEnabled: false }), wall); gab.rotation.y = -Math.PI / 2; gab.position.set(W / 2, 2.3, 0); gab.castShadow = true; g.add(gab);
+  for (const sg of [-1, 1]) mk(g, box, roofM, [0, 2.3 + hh / 2 + 0.07, sg * D / 4], [W + 0.7, 0.14, D / 2 / Math.cos(ang) + 0.45], [sg * ang, 0, 0]);
+  mk(g, box, mat(0x9c4b3a), [1.25, 3.0, -0.5], [0.4, 1.1, 0.4]); mk(g, box, mat(0x6b2f25), [1.25, 3.58, -0.5], [0.5, 0.08, 0.5]);
+  mk(g, box, white, [-1.1, 0.95, D / 2 + 0.03], [0.95, 1.7, 0.08]); mk(g, box, wood, [-1.1, 0.92, D / 2 + 0.07], [0.8, 1.6, 0.06]); mk(g, sph, mat(0xf2c94c), [-0.82, 0.9, D / 2 + 0.13], 0.045);
+  mk(g, box, mat(0x9e9a90), [-1.1, 0.06, D / 2 + 0.38], [1.1, 0.12, 0.6]);
+  const winM = new THREE.MeshStandardMaterial({ color: lin(0x39434d), emissive: lin(0xffc860), emissiveIntensity: 0, roughness: 0.5 }); NIGHT.wins.push(winM);
+  mk(g, box, white, [0.95, 1.2, D / 2 + 0.03], [1.05, 0.95, 0.08]); mk(g, box, winM, [0.95, 1.2, D / 2 + 0.07], [0.9, 0.8, 0.05]); mk(g, box, white, [0.95, 1.2, D / 2 + 0.1], [0.05, 0.85, 0.03]);
+  for (const sg of [-1, 1]) { mk(g, box, white, [sg * (W / 2 + 0.03), 1.3, 0.1], [0.08, 0.8, 0.8]); mk(g, box, winM, [sg * (W / 2 + 0.07), 1.3, 0.1], [0.05, 0.64, 0.64]); }
+  if (H.vase) for (const x of [0.95]) { mk(g, box, wood, [x, 0.62, D / 2 + 0.2], [1.1, 0.16, 0.2]); for (let i = 0; i < 6; i++) { mk(g, sph, mat([0xf08aa0, 0xffcf3f, 0xf5f5f0, 0xb69be0, 0xff8a65, 0xf08aa0][i]), [x - 0.4 + i * 0.16, 0.78 + (i % 2) * 0.05, D / 2 + 0.2], 0.075); } mk(g, box, mat(0xd9534f), [-1.1, 0.14, D / 2 + 0.95], [0.7, 0.03, 0.4]); }
+  if (H.cafe) { const tx = 1.1, tz = D / 2 + 0.85; mk(g, cyl, wood, [tx, 0.55, tz], [0.05, 1.1, 0.05]); mk(g, cyl, white, [tx, 1.1, tz], [0.42, 0.05, 0.42]); mk(g, cyl, mat(0x5d4037), [tx - 0.1, 1.17, tz], [0.07, 0.1, 0.07]); mk(g, cyl, mat(0x5d4037), [tx + 0.12, 1.17, tz + 0.05], [0.07, 0.1, 0.07]); for (const dx of [-0.65, 0.65]) { mk(g, cyl, wood, [tx + dx, 0.3, tz], [0.04, 0.6, 0.04]); mk(g, cyl, mat(0xb08968), [tx + dx, 0.62, tz], [0.22, 0.05, 0.22]); } }
+  if (H.store) { mk(g, box, wood, [1.75, 0.55, D / 2 + 0.3], [0.8, 1.1, 0.45]); mk(g, box, mat(0xa57a4c), [1.75, 0.55, D / 2 + 0.54], [0.74, 0.5, 0.04]); mk(g, box, mat(0xa57a4c), [1.75, 0.95, D / 2 + 0.54], [0.74, 0.3, 0.04]); }
+  const bl = bub('🏠'); bl.position.set(0, 4.5, 0); g.add(bl);
+  // the porch lamp
+  if (NIGHT.gtex) { const bm = new THREE.MeshBasicMaterial({ color: 0xa99f80, toneMapped: false }), bu = new THREE.Mesh(sph, bm); bu.scale.setScalar(0.1); bu.position.set(-0.45, 1.9, D / 2 + 0.12); g.add(bu); const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: NIGHT.gtex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false })); gl.scale.set(1.7, 1.7, 1); gl.position.copy(bu.position); gl.visible = false; g.add(gl); NIGHT.lamps.push({ bulb: bm, glow: gl }); }
+  click(g, 'home', 0); COL.push({ t: 'b', x: LAY.house.x, z: LAY.house.z, hw: D / 2 + 0.15, hd: W / 2 + 0.15 });
+  return g;
+}
 function build3d() {
   if (!scene) return;
   if (root) scene.remove(root);
@@ -561,7 +625,7 @@ function build3d() {
   for (const R of ROAD_LINES) { const c = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'catmullrom', 0.5); for (let i = 0; i <= 40; i++) { const p = c.getPoint(i / 40); ROADPTS.push([p.x, p.z]); } }
   { const px = LAY.plaza; for (let a = 0; a < 12; a++) ROADPTS.push([px.x + Math.cos(a / 12 * 6.283) * 2, px.z + Math.sin(a / 12 * 6.283) * 2]); ROADPTS.push([px.x, px.z]); }
   const penR = { x0: LAY.pen.x - 4.4, x1: LAY.pen.x + 4.4, z0: LAY.pen.z - 3.4, z1: LAY.pen.z + 3.2 };
-  const free = (x, z) => !nearRoad(x, z, 2.1) && !(Math.abs(x) > 2.3 && Math.abs(x) < 6.9 && z > 2.4 && z < 11.5) && !(x > penR.x0 && x < penR.x1 && z > penR.z0 && z < penR.z1) && !(Math.hypot((x - LAY.pond.x) / 4.6, (z - LAY.pond.z) / 3.7) < 1) && !(z < -8 && z > -13.6 && Math.abs(x) < 10.5) && !(Math.hypot(x - LAY.plaza.x, z - LAY.plaza.z) < 3.2) && !(Math.hypot(x - LAY.truck.x, z - LAY.truck.z) < 2.2);
+  const free = (x, z) => !nearRoad(x, z, 2.1) && !(Math.abs(x) > 2.3 && Math.abs(x) < 6.9 && z > 2.4 && z < 11.5) && !(x > penR.x0 && x < penR.x1 && z > penR.z0 && z < penR.z1) && !(Math.hypot((x - LAY.pond.x) / 4.6, (z - LAY.pond.z) / 3.7) < 1) && !(z < -8 && z > -13.6 && Math.abs(x) < 10.5) && !(Math.hypot(x - LAY.plaza.x, z - LAY.plaza.z) < 3.2) && !(Math.hypot(x - LAY.truck.x, z - LAY.truck.z) < 2.2) && !(x > -12.9 && x < -7.2 && z > 9.2 && z < 13.8);
   // ground
   const gt = grassTex(); mk(root, new THREE.PlaneGeometry(110, 110), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, -10], 1, [-Math.PI / 2, 0, 0]).castShadow = false;
   // roads: a darker gravel edge, then the dirt surface, and a stone plaza where they meet
@@ -616,19 +680,20 @@ function build3d() {
   // decorations (each beside a road or a bed block, never on one)
   const D = S.deco;
   const tree = (x, z, s = 1) => { const hh = hash(x + ',' + z), gs = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35]; mk(root, cyl, mat(0x5a4030, { roughness: 1 }), [x, 0.9 * s, z], [0.17 * s, 1.8 * s, 0.17 * s]); [[0, 2.3, 0, 1.15], [0.55, 1.9, 0.25, 0.8], [-0.5, 2.0, -0.2, 0.85], [0.1, 2.95, 0.1, 0.7], [-0.2, 1.8, 0.5, 0.7]].forEach(([dx, dy, dz, r], i) => mk(root, sph, mat(gs[(hh + i) % 4], { roughness: 1 }), [x + dx * s, dy * s, z + dz * s], [r * s, r * 0.88 * s, r * s])); };
-  [[-10.2, 5], [11.4, 2.2], [-12.2, -7.5], [12.2, -8.4], [-10.6, 12], [11.2, 11], [-3.6, -12.4]].forEach(([x, z], i) => { tree(x, z, 1 + (i % 3) * 0.12); COL.push({ t: 'c', x, z, r: 0.4 }); });
-  if (D.tree) { mk(root, cyl, mat(0x6d4c41), [-10.2, 0.8, 9], [0.2, 1.6, 0.2]); mk(root, sph, mat(0x4f9a4a), [-10.2, 2.1, 9], 1.1); for (let i = 0; i < 5; i++) mk(root, sph, mat(0xe0443a), [-10.2 + Math.cos(i * 1.3) * 0.9, 2 + (i % 2) * 0.4, 9 + Math.sin(i * 1.3) * 0.9], 0.14); COL.push({ t: 'c', x: -10.2, z: 9, r: 0.4 }); }
+  [[-10.2, 5], [11.4, 2.2], [-12.2, -7.5], [12.2, -8.4], [11.6, 10.2], [-3.6, -12.4]].forEach(([x, z], i) => { tree(x, z, 1 + (i % 3) * 0.12); COL.push({ t: 'c', x, z, r: 0.4 }); });
+  if (D.tree) { mk(root, cyl, mat(0x6d4c41), [-12.2, 0.8, 7.6], [0.2, 1.6, 0.2]); mk(root, sph, mat(0x4f9a4a), [-12.2, 2.1, 7.6], 1.1); for (let i = 0; i < 5; i++) mk(root, sph, mat(0xe0443a), [-12.2 + Math.cos(i * 1.3) * 0.9, 2 + (i % 2) * 0.4, 7.6 + Math.sin(i * 1.3) * 0.9], 0.14); COL.push({ t: 'c', x: -12.2, z: 7.6, r: 0.4 }); }
   if (D.flower) for (let i = 0; i < 12; i++) { const x = 8.6 + (i % 4) * 0.5, z = 6 + Math.floor(i / 4) * 0.5; mk(root, cyl, mat(0x4f9a4a), [x, 0.15, z], [0.02, 0.3, 0.02]); mk(root, sph, mat([0xf08aa0, 0xffcf3f, 0xf5f5f0, 0x8e44ad][i % 4]), [x, 0.35, z], 0.12); }
   if (D.gazebo) { const g = new THREE.Group(); g.position.set(-10, 0, 6.8); root.add(g); for (const x of [-1, 1]) for (const z of [-1, 1]) mk(g, cyl, mat(0xf5f5f0), [x, 1, z], [0.08, 2, 0.08]); mk(g, cone, mat(0xb8322a), [0, 2.5, 0], [1.9, 1, 1.9], [0, Math.PI / 4, 0]); mk(g, cyl, mat(0xb08968), [0, 0.06, 0], [1.4, 0.1, 1.4]); }
   if (D.fountain) { const F = LAY.fountain; COL.push({ t: 'c', x: F.x, z: F.z, r: 1.3 }); const g = new THREE.Group(); g.position.set(F.x, 0, F.z); root.add(g); mk(g, cyl, mat(0xcfd8dc), [0, 0.2, 0], [1.3, 0.4, 1.3]); mk(g, cyl, mat(0x4fb3e8), [0, 0.42, 0], [1.1, 0.05, 1.1]); mk(g, cyl, mat(0xcfd8dc), [0, 0.8, 0], [0.18, 1, 0.18]); mk(g, sph, mat(0x8ad4f5), [0, 1.4, 0], 0.3); }
   if (D.windmill) { COL.push({ t: 'c', x: 11.6, z: 6.5, r: 1 }); const g = new THREE.Group(); g.position.set(11.6, 0, 6.5); root.add(g); mk(g, cone, mat(0xf5f5f0), [0, 1.8, 0], [1, 3.6, 1]); const bl = new THREE.Group(); bl.position.set(0, 3.2, 0.9); g.add(bl); for (let i = 0; i < 4; i++) { const a = new THREE.Group(); a.rotation.z = i * Math.PI / 2; bl.add(a); mk(a, box, mat(0xb08968), [0, 1, 0], [0.16, 2, 0.04]); } bl.userData.spin = 1; root.userData.wm = bl; }
   // lamp posts along the roads: warm glow at night
   NIGHT.lamps.length = 0; NIGHT.glint = null;
-  { const gc = document.createElement('canvas'); gc.width = gc.height = 64; const gx = gc.getContext('2d'), gg = gx.createRadialGradient(32, 32, 2, 32, 32, 32); gg.addColorStop(0, 'rgba(255,230,160,0.95)'); gg.addColorStop(0.35, 'rgba(255,200,110,0.35)'); gg.addColorStop(1, 'rgba(255,190,90,0)'); gx.fillStyle = gg; gx.fillRect(0, 0, 64, 64); const gt2 = new THREE.CanvasTexture(gc);
+  { const gc = document.createElement('canvas'); gc.width = gc.height = 64; const gx = gc.getContext('2d'), gg = gx.createRadialGradient(32, 32, 2, 32, 32, 32); gg.addColorStop(0, 'rgba(255,230,160,0.95)'); gg.addColorStop(0.35, 'rgba(255,200,110,0.35)'); gg.addColorStop(1, 'rgba(255,190,90,0)'); gx.fillStyle = gg; gx.fillRect(0, 0, 64, 64); const gt2 = new THREE.CanvasTexture(gc); NIGHT.gtex = gt2;
     const lamp = (x, z) => { const g = new THREE.Group(); g.position.set(x, 0, z); root.add(g); mk(g, cyl, mat(0x3b3b3b), [0, 1.1, 0], [0.05, 2.2, 0.05]); mk(g, box, mat(0x3b3b3b), [0.12, 2.2, 0], [0.3, 0.05, 0.05]); const bm = new THREE.MeshBasicMaterial({ color: 0xa99f80, toneMapped: false }); const bulb = new THREE.Mesh(sph, bm); bulb.scale.setScalar(0.13); bulb.position.set(0.24, 2.12, 0); g.add(bulb);
       const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: gt2, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0, fog: false })); gl.scale.set(1.9, 1.9, 1); gl.position.set(0.24, 2.12, 0); gl.visible = false; g.add(gl); NIGHT.lamps.push({ bulb: bm, glow: gl }); COL.push({ t: 'c', x, z, r: 0.14 }); };
     [[-2.05, 11.6], [2.05, 8.2], [-2.05, 4.6], [2.05, 1.8], [-2.9, -4.3], [2.9, -4.3], [-2.9, -9.5], [2.9, -9.5], [-6.6, 1.9], [6.4, 1.2], [-4.4, -9.9], [4.4, -9.9], [3.2, 13.3]].forEach(([x, z]) => lamp(x, z)); }
   { const gm = new THREE.MeshBasicMaterial({ color: 0xfff2c0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, toneMapped: false }); const gl = new THREE.Mesh(new THREE.CircleGeometry(1, 24), gm); gl.rotation.x = -Math.PI / 2; gl.scale.set(1.5, 0.45, 1); gl.position.set(LAY.pond.x, 0.17, LAY.pond.z + 0.2); gl.visible = false; root.add(gl); NIGHT.glint = gl; }
+  buildHouse(root, click);
   LT.key = '';
   // bubbles for ready crops live on the plot objects
   plotObjs.forEach(o => { const b = bub('🧺'); b.position.set(0, 1.9, 0); b.visible = false; o.g.add(b); o.b = b; });
@@ -751,7 +816,7 @@ function stepPlayer(dt) {
   const idle = tab || $('title').hidden === false || m < 0.1;
   if (!idle) { const e = Math.pow((m - 0.1) / 0.9, 1.15); jx = jx / m * e; jy = jy / m * e; m = e; }
   // the wanted velocity follows the stick; the real velocity eases towards it (frame-rate independent), so starts and stops are soft
-  const tx = idle ? 0 : (-Math.sin(CAM.yaw) * jy + Math.cos(CAM.yaw) * jx) * 4.6, tz = idle ? 0 : (-Math.cos(CAM.yaw) * jy - Math.sin(CAM.yaw) * jx) * 4.6, k = 1 - Math.exp(-dt * (idle ? 13 : 9));
+  const spd = S.en < TIRED ? 3.7 : 4.6, tx = idle ? 0 : (-Math.sin(CAM.yaw) * jy + Math.cos(CAM.yaw) * jx) * spd, tz = idle ? 0 : (-Math.cos(CAM.yaw) * jy - Math.sin(CAM.yaw) * jx) * spd, k = 1 - Math.exp(-dt * (idle ? 13 : 9));
   V.x += (tx - V.x) * k; V.z += (tz - V.z) * k;
   const sp = Math.hypot(V.x, V.z);
   if (sp > 0.03) {
@@ -787,6 +852,7 @@ function targets() {
     if (rd) add(0.4, '🧺', `เก็บผลผลิตสัตว์ (${rd})`, () => A.collall()); else add(1.2, '🐾', 'ดูคอกสัตว์', () => openTab('pen'));
   }
   if (at(LAY.pond.x - 1.6, LAY.pond.z + 1.2) < 4.6) { const rd = S.pond.filter(fishReady).length; if (rd) add(0.4, '🎣', `จับปลา (${rd})`, () => { A.fishall(); build3d(); }); else add(1.2, '🐟', 'ดูบ่อปลา', () => openTab('pond')); }
+  if (at(-7.7, 12.3) < 3.0) add(at(-7.7, 12.3), S.en < TIRED ? '😮‍💨' : '🏠', S.en < TIRED ? 'บ้าน (พักผ่อน)' : 'บ้านของฉัน', () => openTab('home'));
   if (at(0, -9) < 3.2) add(at(0, -9), '🏪', 'ตลาด', () => openTab('market'));
   if (at(LAY.barn.x, LAY.barn.z + 1.4) < 3.4) add(at(LAY.barn.x, LAY.barn.z + 1.4), '🏚️', 'ยุ้งฉาง', () => openTab('barn'));
   if (S.u.work && at(LAY.work.x, LAY.work.z + 1.4) < 3.2) add(at(LAY.work.x, LAY.work.z + 1.4), '🏭', 'โรงงานแปรรูป', () => openTab('work'));
@@ -827,12 +893,12 @@ let loopOn = false, lastT = 0, acc = 0, saveT = 0;
 async function startGame(n, name) {
   let data = typeof name === 'string' ? null : await readSlot(n);
   S = Object.assign(fresh(typeof name === 'string' ? name : ''), data || {}); slot = n;
-  if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = [];
+  if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = []; if (!S.home) S.home = {}; if (S.en == null) S.en = 100;
   if (data && data.dayN == null) { S.dayN = Math.floor(S.t / DAY) + 1; S.dayT = (S.t % DAY) / DAY * dayLen(); }      // older saves: keep the day number and the time of day
   if (data && S.pv !== 2) { S.pv = 2; S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= S.plots.length)); }      // older saves counted plots 6/8/12/16: keep the number of beds you already had
   while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0 });
   // offline progress: the farm kept growing while the game was closed (max 12 hours)
-  const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update(off); if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }
+  const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update.nd = 1; update(off); update.nd = 0; if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }
   P.x = S.px || 0; P.z = S.pz || 10.5; P.rot = Math.PI; CAM.yaw = 0; CF.init = 0; V.x = V.z = 0; LT.key = '';
   if (!renderer) { init3d(); playerG = makePlayer(); scene.add(playerG); } else build3d();
   $('title').hidden = true; hud(); save(); if (!S.tip) $('tip').hidden = false;
@@ -846,11 +912,11 @@ function loop(now) {
     const lbl = $('actlbl'), b = $('act'), key = t ? t.icon + t.label : '';
     if (loop.k !== key) { loop.k = key; b.textContent = t ? t.icon : '✋'; b.classList.toggle('idle', !t); lbl.hidden = !t; lbl.textContent = t ? t.label : ''; }
     renderer.render(scene, camera);
-    acc += dt; if (acc > 0.5) { acc = 0; hud(); if (tab && (tab === 'pen' || tab === 'pond' || tab === 'work' || tab === 'farm' || tab === 'barn')) render(); } saveT += dt; if (saveT > 3) { saveT = 0; save(); }
+    acc += dt; if (acc > 0.5) { acc = 0; hud(); if (tab && (tab === 'pen' || tab === 'pond' || tab === 'work' || tab === 'farm' || tab === 'barn' || tab === 'home')) render(); } saveT += dt; if (saveT > 3) { saveT = 0; save(); }
   }
   requestAnimationFrame(loop);
 }
-document.addEventListener('visibilitychange', () => { if (!S) return; if (document.hidden) save(); else { const off = Math.min(12 * 3600, (Date.now() - S.last) / 1000); if (off > 3) update(off); lastT = performance.now(); } });
+document.addEventListener('visibilitychange', () => { if (!S) return; if (document.hidden) save(); else { const off = Math.min(12 * 3600, (Date.now() - S.last) / 1000); if (off > 3) { update.nd = 1; update(off); update.nd = 0; } lastT = performance.now(); } });
 addEventListener('pagehide', () => { if (S) save(); }); addEventListener('beforeunload', () => { if (S) save(); });
 showTitle();
 window.Farm2 = { get S() { return S; }, update, build3d, openTab, plant, price, P, CAM, startGame, get online() { return online; } };
