@@ -128,7 +128,8 @@ function save() { if (!S || !slot) return; S.last = Date.now(); S.px = P.x; S.pz
 let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { saveQ = 0; save(); }, 500); };
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
 const day = () => S.dayN;
-const xpNeed = l => Math.round(50 * Math.pow(l, 1.5));
+// levels go up to 300: a little slower per level than before, and from level 150 every next level takes steadily longer (x2.5 at the end)
+const MAXLV = 300, xpNeed = l => Math.round(55 * Math.pow(l, 1.5) * (l > 150 ? 1 + (l - 150) / 100 : 1));
 const cap = () => BARNS[S.u.barn] + (S.home && S.home.store ? 30 : 0), used = () => Object.values(S.inv).reduce((a, b) => a + b, 0), room = () => cap() - used();
 const prestige = () => Object.keys(S.deco).length * 0.3 + (S.deco.fountain ? 0.5 : 0) + (S.home && S.home.vase ? 0.4 : 0);
 const hash = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -179,7 +180,7 @@ function toast(t) { const d = document.createElement('div'); d.className = 't'; 
 // energy: it drains slowly while you work; tired (< 25) means slower walking and 20 % less xp, rested (>= 80) gives 10 % more xp. Sleeping or a nap at home restores it
 const TIRED = 25;
 const energyRate = () => 0.055 * (S.home && S.home.bed ? 0.7 : 1);
-function gainXp(n) { n *= S.en < TIRED ? 0.8 : S.en >= 80 ? 1.1 : 1; S.xp += n; while (S.xp >= xpNeed(S.lvl)) { S.xp -= xpNeed(S.lvl); S.lvl++; const un = [].concat(Object.values(CROPS).filter(c => c.lv === S.lvl).map(c => c.n), Object.values(ANIMALS).filter(a => a.lv === S.lvl).map(a => a.n), Object.values(FISH).filter(f => f.lv === S.lvl).map(f => f.n)); toast(`🎉 เลเวล ${S.lvl}!` + (un.length ? ' ปลดล็อก ' + un.join(' · ') : '')); } }
+function gainXp(n) { n *= S.en < TIRED ? 0.8 : S.en >= 80 ? 1.1 : 1; S.xp += n; while (S.lvl < MAXLV && S.xp >= xpNeed(S.lvl)) { S.xp -= xpNeed(S.lvl); S.lvl++; const un = [].concat(Object.values(CROPS).filter(c => c.lv === S.lvl).map(c => c.n), Object.values(ANIMALS).filter(a => a.lv === S.lvl).map(a => a.n), Object.values(FISH).filter(f => f.lv === S.lvl).map(f => f.n)); toast(`🎉 เลเวล ${S.lvl}!` + (S.lvl >= MAXLV ? ' ถึงเลเวลสูงสุดแล้ว 👑' : un.length ? ' ปลดล็อก ' + un.join(' · ') : '')); } if (S.lvl >= MAXLV) S.xp = 0; }
 function spend(n) { if (S.money < n) { toast('เงินไม่พอ'); return false; } S.money -= n; return true; }
 function addItem(id, n) { const k = Math.min(n, room()); if (k <= 0) { toast('ยุ้งฉางเต็ม! ไปขายที่ตลาดหรืออัปเกรดยุ้งฉาง'); return 0; } S.inv[id] = (S.inv[id] || 0) + k; return k; }
 
@@ -529,7 +530,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-a]')
 // ---------------- HUD ----------------
 function hud() {
   if (!S) return;
-  $('money').textContent = fmt(S.money) + ' ฿'; $('lv').textContent = `${S.name} · Lv.${S.lvl} · ${S.en < TIRED ? '😮‍💨' : '⚡'}${Math.round(S.en)}`; $('xp').style.width = (S.xp / xpNeed(S.lvl) * 100) + '%';
+  $('money').textContent = fmt(S.money) + ' ฿'; $('lv').textContent = `${S.name} · Lv.${S.lvl} · ${S.en < TIRED ? '😮‍💨' : '⚡'}${Math.round(S.en)}`; $('xp').style.width = (S.lvl >= MAXLV ? 100 : S.xp / xpNeed(S.lvl) * 100) + '%';
   const m = Math.floor(hourNow() * 60), hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
   $('day').textContent = `วันที่ ${day()} · ${hh}:${mm}`; $('barn').textContent = `🏚️ ${used()}/${cap()} ›`;
   const c = CROPS[S.sel]; $('seedchip').textContent = `${c.i} ${c.n} ${(S.seeds[S.sel] || 0) > 0 ? '🎒×' + S.seeds[S.sel] : seedUnit(S.sel) + '฿'} ▾`;
@@ -1020,7 +1021,7 @@ function sanitize(S, raw) {
   if ((raw.pv || 0) < 2) { S.pv = 2; S.u = Object.assign({}, S.u); S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= (Array.isArray(S.plots) ? S.plots.length : 0))); if (S.u.plot < 0) S.u.plot = PLOTS.length - 1; }   // old saves counted plots 6/8/12/16: keep the beds you had
   S.name = typeof S.name === 'string' && S.name ? S.name.slice(0, 14) : 'ชาวไร่';
   for (const k of ['money', 'xp', 't', 'dayT', 'bank']) S[k] = num(S[k], F[k], 0);
-  S.lvl = Math.floor(num(S.lvl, 1, 1)); S.dayN = Math.floor(num(S.dayN, 1, 1)); S.bankDay = Math.floor(num(S.bankDay, S.dayN, 1)); S.en = num(S.en, 100, 0, 100);
+  S.lvl = Math.min(300, Math.floor(num(S.lvl, 1, 1))); S.dayN = Math.floor(num(S.dayN, 1, 1)); S.bankDay = Math.floor(num(S.bankDay, S.dayN, 1)); S.en = num(S.en, 100, 0, 100);
   for (const k of ['feed', 'feed2', 'fert']) S[k] = Math.floor(num(S[k], k === 'feed' ? F.feed : 0, 0));
   if (!TM[S.tm]) S.tm = 'normal'; if (S.dayT >= dayLen()) S.dayT = 0;
   S.u = Object.assign({}, F.u, S.u && typeof S.u === 'object' ? S.u : {}); for (const u of UPS) S.u[u.k] = Math.floor(num(S.u[u.k], 0, 0, u.max));
