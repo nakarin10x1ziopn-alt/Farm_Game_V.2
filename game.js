@@ -173,7 +173,7 @@ async function pushServer() {
   try { await api('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(slot), save: S }) }); online = true; } catch (e) { online = false; }
   pushing = false; setSrv(); if (pushAgain) { pushAgain = false; if (S && slot) pushServer(); }   // the id and save are read again here, so a slot switch never writes to the wrong slot
 }
-function save() { if (!S || !slot) return; S.last = Date.now(); S.px = P.x; S.pz = P.z; storageOK = writeSlot(slot, S) || storageOK; if (online) pushServer(); }
+function save() { if (!S || !slot) return; S.last = Date.now(); S.px = HOUSE2.on ? HOUSE2.ex : P.x; S.pz = HOUSE2.on ? HOUSE2.ez : P.z; storageOK = writeSlot(slot, S) || storageOK; if (online) pushServer(); }
 let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { saveQ = 0; save(); }, 500); };
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
 const day = () => S.dayN;
@@ -582,7 +582,7 @@ Object.assign(A, {
   tab: d => { if (d.m) mktTab = d.m; openTab(d.v); }, close: closeSheet,
   nap: () => doSleep('nap'), sleep: () => doSleep('night'),
   sip: () => { if (S.en >= 95) { toast('ยังสดชื่นอยู่ ไว้ค่อยดื่มนะ'); return; } if (spend(5)) { S.en = Math.min(100, S.en + 25); sfx(660); toast('☕ ชื่นใจ พลังงาน +25'); } },
-  homebuy: d => { const it = HOME_ITEMS.find(x => x.k === d.v); if (!it || S.home[it.k]) return; if (!spend(it.price)) return; S.home[it.k] = 1; sfx(900); toast(`${it.i} ${it.n} มาอยู่ในบ้านแล้ว`); build3d(); },
+  homebuy: d => { setTimeout(() => House2.rebuildIfIn(), 60); const it = HOME_ITEMS.find(x => x.k === d.v); if (!it || S.home[it.k]) return; if (!spend(it.price)) return; S.home[it.k] = 1; sfx(900); toast(`${it.i} ${it.n} มาอยู่ในบ้านแล้ว`); build3d(); },
   tmode: d => { if (!TM[d.v] || d.v === S.tm) return; const fr = S.dayT / dayLen(); S.tm = d.v; S.dayT = fr * dayLen(); LT.key = ''; toast(`⏱️ เวลาในเกม: ${TM[d.v].n} (${TM[d.v].d})`); }, tipok: () => { $('tip').hidden = true; if (S) { S.tip = 1; save(); } },
   sel: d => { S.sel = d.v; toast(`เลือก ${CROPS[d.v].n} แตะแปลงว่างเพื่อปลูก`); },
   plantall: () => { let n = 0; S.plots.forEach((p, i) => { if (!p.c && canPlant(S.sel) && CROPS[S.sel].lv <= S.lvl) { plant(i); n++; } }); if (!n) toast('ปลูกไม่ได้ (เงินไม่พอหรือยังไม่ปลดล็อก)'); },
@@ -1055,7 +1055,7 @@ function stepPlayer(dt) {
   V.x += (tx - V.x) * k; V.z += (tz - V.z) * k;
   const sp = Math.hypot(V.x, V.z);
   if (sp > 0.03) {
-    [P.x, P.z] = resolve(P.x + V.x * dt, P.z + V.z * dt, 0.42);
+    [P.x, P.z] = HOUSE2.on ? House2.resolveIn(P.x + V.x * dt, P.z + V.z * dt, 0.42) : resolve(P.x + V.x * dt, P.z + V.z * dt, 0.42);
     let da = Math.atan2(V.x, V.z) - P.rot; da = Math.atan2(Math.sin(da), Math.cos(da)); P.rot += da * (1 - Math.exp(-dt * 11));
     P.ph += sp * dt * 2.3;
   } else { V.x = V.z = 0; }
@@ -1064,9 +1064,10 @@ function stepPlayer(dt) {
   playerG.position.y = Math.abs(Math.sin(P.ph)) * 0.04 * Math.min(1, sp / 3);
 }
 function followCam(dt) {
+  if (HOUSE2.on) { CAM.dist = Math.min(CAM.dist, 15); CAM.pitch = Math.max(CAM.pitch, 0.85); }
   if (!CF.init) { CF.x = P.x; CF.z = P.z; CF.yaw = CAM.yaw; CF.pitch = CAM.pitch; CF.init = 1; }
   const kp = 1 - Math.exp(-dt * 10), kc = 1 - Math.exp(-dt * 14);
-  CF.x += (P.x - CF.x) * kp; CF.z += (P.z - CF.z) * kp; CF.yaw += (CAM.yaw - CF.yaw) * kc; CF.pitch += (CAM.pitch - CF.pitch) * kc;
+  CF.x += ((HOUSE2.on ? HOUSE2.cx : P.x) - CF.x) * kp; CF.z += ((HOUSE2.on ? HOUSE2.cz : P.z) - CF.z) * kp; CF.yaw += (CAM.yaw - CF.yaw) * kc; CF.pitch += (CAM.pitch - CF.pitch) * kc;
   playerG.position.x = P.x; playerG.position.z = P.z; playerG.rotation.y = P.rot;
   const cp = Math.cos(CF.pitch);
   camera.position.set(CF.x + Math.sin(CF.yaw) * cp * CAM.dist, 1.3 + Math.sin(CF.pitch) * CAM.dist, CF.z + Math.cos(CF.yaw) * cp * CAM.dist); camera.lookAt(CF.x, 1.1, CF.z);
@@ -1076,6 +1077,7 @@ function water(i) { const p = S.plots[i]; if (p.c && !p.w) { p.w = 1; sfx(420); 
 function targets() {
   if (PLC) return { d: 0, icon: '✅', label: PLC.err ? 'วางตรงนี้ไม่ได้' : 'วางแปลงที่นี่', fn: () => A.plcok() };
   if (PICK) { let best = null; S.plots.forEach((p, i) => { const o = plotPos(i), d = Math.hypot(P.x - o.x, P.z - o.z); if (d < 2.2 && (!best || d < best.d)) best = { d, i }; }); return best ? { d: best.d, icon: '✋', label: `หยิบแปลง ${best.i + 1} เพื่อย้าย`, fn: () => startPlace(best.i, 'move') } : null; }
+  if (HOUSE2.on) return House2.targets();
   const c = [], add = (d, icon, label, fn) => c.push({ d, icon, label, fn }), at = (x, z) => Math.hypot(P.x - x, P.z - z);
   S.plots.forEach((p, i) => {
     const o = plotPos(i), d = at(o.x, o.z); if (d > 1.5) return;
@@ -1089,7 +1091,7 @@ function targets() {
     if (rd) add(0.4, '🧺', `เก็บผลผลิตสัตว์ (${rd})`, () => A.collall()); else add(1.2, '🐾', 'ดูคอกสัตว์', () => openTab('pen'));
   } }
   if (at(LAY.pond.x - 1.6, LAY.pond.z + 1.2) < 4.6) { const rd = S.pond.filter(fishReady).length; if (rd) add(0.4, '🎣', `จับปลา (${rd})`, () => { A.fishall(); build3d(); }); else add(1.2, '🐟', 'ดูบ่อปลา', () => openTab('pond')); }
-  if (at(-7.7, 12.3) < 3.0) add(at(-7.7, 12.3), S.en < TIRED ? '😮‍💨' : '🏠', S.en < TIRED ? 'บ้าน (พักผ่อน)' : 'บ้านของฉัน', () => openTab('home'));
+  if (at(-7.7, 12.3) < 3.0) add(at(-7.7, 12.3), S.en < TIRED ? '😮‍💨' : '🚪', S.en < TIRED ? 'เข้าบ้าน (พักผ่อน)' : 'เข้าบ้านของฉัน', () => House2.enter());
   if (at(0, -9) < 3.2) add(at(0, -9), '🏪', 'ตลาด', () => openTab('market'));
   if (at(LAY.barn.x, LAY.barn.z + 1.4) < 3.4) add(at(LAY.barn.x, LAY.barn.z + 1.4), '🏚️', 'ยุ้งฉาง', () => openTab('barn'));
   if (S.u.work && at(LAY.work.x, LAY.work.z + 1.4) < 3.2) add(at(LAY.work.x, LAY.work.z + 1.4), '🏭', 'โรงงานแปรรูป', () => openTab('work'));
@@ -1185,7 +1187,7 @@ async function startGame(n, name) {
   while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0 });
   // offline progress: the farm kept growing while the game was closed (max 12 hours)
   const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update.nd = 1; update(off); update.nd = 0; if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }
-  P.x = S.px || 0; P.z = S.pz || 10.5; P.rot = Math.PI; CAM.yaw = 0; CF.init = 0; V.x = V.z = 0; LT.key = '';
+  if (HOUSE2.on) { HOUSE2.on = false; try { House2.build(); } catch (e) { } } P.x = S.px || 0; P.z = S.pz || 10.5; P.rot = Math.PI; CAM.yaw = 0; CF.init = 0; V.x = V.z = 0; LT.key = '';
   if (!renderer) { init3d(); playerG = makePlayer(); scene.add(playerG); } else build3d();
   const isNew28 = typeof name === 'string'; if (isNew28) S.tip = 1;                       // v28: the how-to-play card shows once, when a new save is created (and is never asked for again)
   $('title').hidden = true; hud(); save(); $('tip').hidden = !isNew28;
