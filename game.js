@@ -65,7 +65,8 @@ const ANIMAL_ROWS = [
   ['ostrich', 'นกกระจอกเทศ', '🦤', 210, 320, 6, 50, 'ostrichegg', 'ไข่นกกระจอกเทศ', '🥚', 'long', 0x2b2b2b, 0xf2f2f2, 1.3],
 ];
 const ANIMAL_SHAPE = {};   // 3D look of the new animals
-for (const r of ANIMAL_ROWS) { ANIMALS[r[0]] = { n: r[1], i: r[2], price: r[3], prod: r[7], sec: r[4], bags: r[5], lv: r[6] }; ANIMAL_SHAPE[r[0]] = { k: r[10], c1: r[11], c2: r[12], s: r[13] }; }
+const ANI_LV = lv => lv <= 14 ? lv : Math.round(14 + (lv - 14) * (120 - 14) / (50 - 14));   // the 20 newer animals unlock between Lv.10 and Lv.120 instead of Lv.50
+for (const r of ANIMAL_ROWS) { ANIMALS[r[0]] = { n: r[1], i: r[2], price: r[3], prod: r[7], sec: r[4], bags: r[5], lv: ANI_LV(r[6]) }; ANIMAL_SHAPE[r[0]] = { k: r[10], c1: r[11], c2: r[12], s: r[13] }; }
 // fish and seafood: id, name, icon, fry price, seconds to grow, level, colour, body (fish / eel / crab / shell / squid / frog / shrimp). Sale price is 3x the fry price.
 const FISH_ROWS = [
   ['tilapia', 'ปลานิล', '🐟', 5, 100, 1, 0xf0a24a, 'fish'], ['carp', 'ปลาคาร์ป', '🐠', 11, 160, 3, 0xe0443a, 'fish'], ['catfish', 'ปลาดุก', '🐡', 19, 220, 5, 0x6d5c4c, 'fish'], ['shrimp', 'กุ้งก้ามกราม', '🦐', 29, 320, 8, 0xf08a6a, 'shrimp'],
@@ -77,7 +78,8 @@ const FISH_ROWS = [
   ['lobster', 'กุ้งมังกร', '🦞', 85, 430, 11, 0xd84a32, 'shrimp'], ['salmon', 'ปลาแซลมอน', '🐟', 95, 450, 12, 0xff8f7a, 'fish'], ['oyster', 'หอยนางรม', '🦪', 110, 500, 14, 0xb9b3a6, 'shell'],
 ];
 const FISH = {};
-for (const r of FISH_ROWS.slice().sort((a, b) => a[5] - b[5])) FISH[r[0]] = { n: r[1], i: r[2], price: r[3], sec: r[4], sell: M(r[3]), lv: r[5], col: r[6], body: r[7] };
+const FISH_LV = lv => lv <= 5 ? lv : Math.round(5 + (lv - 5) * (100 - 5) / (14 - 5));   // fish and seafood unlock between Lv.1 and Lv.100 instead of Lv.14
+for (const r of FISH_ROWS.slice().sort((a, b) => a[5] - b[5])) FISH[r[0]] = { n: r[1], i: r[2], price: r[3], sec: r[4], sell: M(r[3]), lv: FISH_LV(r[5]), col: r[6], body: r[7] };
 // every sellable thing: n name, i icon, base price
 const ITEMS = {};
 for (const k in CROPS) ITEMS[k] = { n: CROPS[k].n, i: CROPS[k].i, base: CROPS[k].sell };
@@ -114,7 +116,7 @@ for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], bas
 const PLOTS = [8, 10, 12, 14, 16], PENS = [6, 10, 15, 20, 26, 33, 41, 50, 60, 72], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
 // vegetable beds are bought one at a time now (up to 40), each dearer than the last but never steep, and each can be placed anywhere
 const PLOT_MAX = 3000, PLOT_SOFT = 40, PLOT_START = 8;   // no fixed limit: beds can be bought until the farm has no free spot (3000 is only a safety stop)
-const plotPrice = n => Math.round(20 + 2.5 * (n - PLOT_START));   // the next bed when you own n: 20 ฿ for the 9th, 97 ฿ for the 40th, then +2.5 ฿ for each one more
+const plotPrice = n => n <= 40 ? Math.round(20 + 2.5 * (n - PLOT_START)) : Math.min(160, Math.round(100 + (n - 40) * 0.4));   // the next bed when you own n: 20 ฿ for the 9th, 97 ฿ for the 40th, then it rises slowly from 100 ฿ and stops at 160 ฿
 // the farm is bigger than before: the old farm in the middle, a new field area to the south
 const BOUND = { x0: -85, x1: 85, z0: -13.5, z1: 160 };   // about ten times the old farm (it was x -27..27, z -13.5..40)
 const DECOS = [
@@ -180,7 +182,9 @@ const MAXLV = 300, xpNeed = l => Math.round(55 * Math.pow(l, 1.5) * (l > 150 ? 1
 const cap = () => BARNS[S.u.barn] + (S.home && S.home.store ? 30 : 0), used = () => Object.values(S.inv).reduce((a, b) => a + b, 0), room = () => cap() - used();
 const prestige = () => Object.keys(S.deco).length * 0.3 + (S.deco.fountain ? 0.5 : 0) + (S.home && S.home.vase ? 0.4 : 0);
 const hash = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
-const factor = (id, d) => 0.985 + (hash(id + ':' + d) % 1000) / 1000 * 0.05;       // 0.985 .. 1.035, a new price every farm day
+// the market price moves in slow waves: a 12-24 day swing and a 31-53 day swing per item, so a price rises for days, peaks, then eases back (never a sudden jump).
+// It is always between 1.0x and 1.3x of the base, and the base is 3x the buying price, so everything sells for at least 3x what it cost
+const factor = (id, d) => { const h1 = hash(id + ':a'), h2 = hash(id + ':b'), P1 = 12 + h1 % 13, P2 = 31 + h2 % 23, f1 = (h1 >>> 8) % 628 / 100, f2 = (h2 >>> 8) % 628 / 100; return 1 + 0.3 * (0.5 + 0.5 * (0.65 * Math.sin(2 * Math.PI * d / P1 + f1) + 0.35 * Math.sin(2 * Math.PI * d / P2 + f2))); };
 const bonus = () => 1 + [0, 0.04, 0.08][S.u.truck] + prestige() / 100;
 const price = id => Math.round(ITEMS[id].base * factor(id, day()) * bonus() * 10) / 10;
 const trend = id => factor(id, day()) - factor(id, day() - 1);
@@ -222,7 +226,7 @@ function ledAdd(g, n) {
 }
 const catOf = id => (CROPS[id] ? (CROPS[id].k === 'fruit' ? 'ผลไม้' : 'ผัก') : FISH[id] ? 'ปลาและอาหารทะเล' : RECIPES.some(r => r.id === id) ? 'แปรรูป' : 'ผลผลิตสัตว์');
 const CATS = [['ผัก', '🥕'], ['ผลไม้', '🍎'], ['ผลผลิตสัตว์', '🥚'], ['ปลาและอาหารทะเล', '🐟'], ['แปรรูป', '🥫']];
-const isGood = id => factor(id, day()) >= 1.005;
+const isGood = id => factor(id, day()) >= 1.2;
 function toast(t) { const d = document.createElement('div'); d.className = 't'; d.textContent = t; $('toast').appendChild(d); while ($('toast').children.length > 3) $('toast').firstChild.remove(); setTimeout(() => d.classList.add('out'), 2200); setTimeout(() => d.remove(), 2700); }
 // energy: it drains slowly while you work; tired (< 25) means slower walking and 20 % less xp, rested (>= 80) gives 10 % more xp. Sleeping or a nap at home restores it
 const TIRED = 25;
@@ -277,7 +281,7 @@ function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext
 
 // upgrades: the 10 things money is for (1-4 are the core buys: seeds, animals, fish, feed)
 const UPS = [
-  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 9, cost: [107, 320, 800, 1867, 3200, 4800, 7000, 10000, 14000], desc: l => `คอกกว้างขึ้น จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
+  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 9, cost: [107, 300, 600, 1100, 1700, 2400, 3300, 4400, 5600], desc: l => `คอกกว้างขึ้น จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
   { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [93, 267, 693, 1600], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
   { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [53, 160, 427, 1067], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
   { k: 'sprinkler', n: 'ระบบสปริงเกอร์อัตโนมัติ', i: '💦', max: 1, cost: [320], desc: () => 'รดน้ำทุกแปลงให้เอง ผักโตเร็วขึ้น 1.5 เท่า' },
@@ -409,7 +413,7 @@ function farmHTML() {
   const packBtn = n => { const c = plotPackCost(n), ok = !full && n0 + n <= PLOT_MAX && S.money >= c.pay; return `<button class="btn${n === 1 ? ' ghost' : ''}" style="min-width:0;padding:8px 4px" data-a="buyplots" data-n="${n}" ${ok ? '' : 'disabled'}>ซื้อ ${n} แปลง<br><small>${c.cut ? `<s>${fmt(c.sum)}</s> ` : ''}${fmt(c.pay)} ฿${c.cut ? ` · ลด ${fmt(c.cut)}` : ''}</small></button>`; };
   const promoTxt = w.on ? `<b class="up">🎁 โปรแปลงผัก: ซื้อ 3 แปลง ลด ${fmt(plotPackCost(3).cut)} ฿ · ซื้อ 5 แปลง ลด ${fmt(plotPackCost(5).cut)} ฿ · วันที่ ${w.from}–${w.to} (เหลือ ${w.to - day() + 1} วัน)</b><br>หมดโปรแล้วกลับเป็นราคาปกติ` : `<small>🎁 โปรรอบหน้า: ซื้อ 3 แปลง ลด ${Math.round(pk[0][1] * 100)}% · ซื้อ 5 แปลง ลด ${Math.round(pk[1][1] * 100)}% · วันที่ ${w.from}–${w.to} (ตอนนี้ราคาปกติ)</small>`;
   let h = `<h5>🧱 แปลงของคุณ ${n0} แปลง${full ? ' · เต็มแล้ว' : NOSLOT ? ` · ฟาร์มเต็ม วางเองได้เฉพาะจุดว่าง · แปลงถัดไป ${fmt(plotPrice(n0))} ฿` : ` · แปลงถัดไป ${fmt(plotPrice(n0))} ฿`}</h5>
-  <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">🎁</div><div><p>${promoTxt}<br>ราคาแปลงเพิ่มทีละนิด ตั้งแต่ ${plotPrice(PLOT_START)} ฿ (แปลงที่ 40 ราคา ${plotPrice(40)} ฿) ซื้อได้ไม่จำกัดจนกว่าฟาร์มจะเต็ม · ปลูกได้ทั้งผักและผลไม้ทุกชนิด</p></div></div>
+  <div class="card" style="grid-template-columns:46px 1fr"><div class="ci">🎁</div><div><p>${promoTxt}<br>ราคาแปลงเพิ่มทีละนิด ตั้งแต่ ${plotPrice(PLOT_START)} ฿ (แปลงที่ 40 ราคา ${plotPrice(40)} ฿) ราคาขึ้นช้าๆ และหยุดที่ 160 ฿ ซื้อได้ไม่จำกัดจนกว่าฟาร์มจะเต็ม · ปลูกได้ทั้งผักและผลไม้ทุกชนิด</p></div></div>
   <div class="row">${packBtn(1)}${packBtn(3)}${packBtn(5)}</div>
   <div class="row"><button class="btn ghost" data-a="buyplotm" ${!full && S.money >= plotPrice(n0) ? '' : 'disabled'}>➕ ซื้อ 1 แปลง แล้ววางเอง</button><button class="btn ghost" data-a="pickmode">✋ ย้ายแปลง</button><button class="btn ghost" data-a="plotreset">↺ จัดแถวมาตรฐาน</button></div>
   <h5>🌱 ปลูก</h5><div class="row"><button class="btn" data-a="plantall" ${empty && canPlant(S.sel) ? '' : 'disabled'}>ปลูกทั้งหมด (${empty} แปลงว่าง)</button><button class="btn ghost" data-a="harvall" ${rd ? '' : 'disabled'}>เก็บเกี่ยวทั้งหมด (${rd})</button></div>
@@ -433,7 +437,7 @@ function sellHTML() {
     const sub = items.reduce((a, k) => a + price(k) * S.inv[k], 0), n = items.reduce((a, k) => a + S.inv[k], 0);
     h += `<h5>${ic} ${cat} · ${n} ชิ้น ≈ ${fmt(sub)} ฿</h5><div class="row"><button class="btn ghost" data-a="sellcat" data-v="${cat}">ขายทั้งหมวด ${cat}</button></div>`;
     h += items.map(k => {
-      const it = ITEMS[k], f = factor(k, day()), pc = Math.round((f - 1) * 100), tag = f >= 1.012 ? '<b class="up">🔥 ราคาดี</b>' : f < 0.995 ? '<b class="down">⏳ ราคาต่ำ</b>' : 'ราคาปกติ', t = trend(k);
+      const it = ITEMS[k], f = factor(k, day()), pc = Math.round((f - 1) * 100), tag = f >= 1.2 ? '<b class="up">🔥 ราคาดี</b>' : f < 1.08 ? '<b class="down">⏳ ราคาต่ำ</b>' : 'ราคาปกติ', t = trend(k);
       return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tag} <span class="${t >= 0 ? 'up' : 'down'}">${t >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(t * 100))}%</span><br>รวม ≈ ${fmt(price(k) * S.inv[k])} ฿</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 10 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="10">ขาย 10</button>` : ''}${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`;
     }).join('');
   }
@@ -539,7 +543,7 @@ function render() {
       h += `<h5>📦 ผลผลิตในยุ้ง</h5>`;
       if (ids.length) {
         h += `<div class="row"><button class="btn" data-a="sellall">ขายทั้งหมด ≈ ${fmt(val)} ฿</button><button class="btn ghost" data-a="tab" data-v="market">🏪 ไปตลาด</button></div>`;
-        h += ids.map(k => { const it = ITEMS[k], f = factor(k, day()), tip = f > 1.012 ? '<b class="up">🔥 ราคาดี ควรขาย</b>' : f < 0.995 ? '<b class="down">⏳ ราคาต่ำ รอก่อนได้</b>' : 'ราคาปกติ', rc = S.u.work ? RECIPES.filter(r => r.in[k]).map(r => `${ITEMS[r.id].i}${ITEMS[r.id].n} ได้ ${Math.floor(S.inv[k] / r.in[k])} ชุด`).filter(x => !/ 0 ชุด$/.test(x)).join(' · ') : '';
+        h += ids.map(k => { const it = ITEMS[k], f = factor(k, day()), tip = f > 1.2 ? '<b class="up">🔥 ราคาดี ควรขาย</b>' : f < 1.08 ? '<b class="down">⏳ ราคาต่ำ รอก่อนได้</b>' : 'ราคาปกติ', rc = S.u.work ? RECIPES.filter(r => r.in[k]).map(r => `${ITEMS[r.id].i}${ITEMS[r.id].n} ได้ ${Math.floor(S.inv[k] / r.in[k])} ชุด`).filter(x => !/ 0 ชุด$/.test(x)).join(' · ') : '';
           return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tip}${rc ? `<br>🏭 แปรรูปได้: ${rc}` : ''}</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`; }).join('');
       } else h += '<p style="color:var(--ink-dim)">ยุ้งฉางว่างอยู่ ไปเก็บเกี่ยวผลผลิตจากแปลง คอก หรือบ่อปลาก่อนนะ</p>';
       return h;
@@ -567,7 +571,7 @@ Object.assign(A, {
   buyfishn: d => { const n = +d.n || 5, f = FISH[d.v]; if (S.pond.length + n > PONDS[S.u.pond]) { toast(`บ่อมีที่ไม่พอสำหรับ ${n} ตัว ขยายบ่อที่แท็บ ⭐`); return; } if (!spend(f.price * n - promoCut('fish', d.v, n))) return; for (let k = 0; k < n; k++) S.pond.push({ f: d.v, p: 0 }); sfx(560); build3d(); },
   collsp: d => { let n = 0; S.pen.forEach((a, i) => { if (a.a === d.v && collectAnimal(i)) n++; }); if (n) toast(`เก็บผลผลิต ${n} ชิ้น`); },
   sellsp: d => { let j = -1; S.pen.forEach((a, i) => { if (a.a === d.v && a.st !== 'ready' && (j < 0 || S.pen[j].st !== 'idle' && a.st === 'idle')) j = i; }); if (j < 0) j = S.pen.findIndex(a => a.a === d.v); if (j >= 0) A.sellan({ v: j }); },
-  sellan: d => { const a = S.pen[+d.v], g = Math.round(ANIMALS[a.a].price * 0.6); S.pen.splice(+d.v, 1); S.money += g; toast(`ขายสัตว์ได้ ${fmt(g)} ฿`); build3d(); },
+  sellan: d => { const a = S.pen[+d.v], g = Math.round(ANIMALS[a.a].price * 0.8); S.pen.splice(+d.v, 1); S.money += g; toast(`ขายสัตว์ได้ ${fmt(g)} ฿`); build3d(); },
   coll: d => { collectAnimal(+d.v); },
   collall: () => { let n = 0; S.pen.forEach((a, i) => { if (collectAnimal(i)) n++; }); if (n) toast(`เก็บผลผลิต ${n} ชิ้น`); },
   buyfish: d => { if (S.pond.length >= PONDS[S.u.pond]) { toast('บ่อเต็ม ขยายบ่อที่แท็บ ⭐'); return; } if (!spend(FISH[d.v].price)) return; S.pond.push({ f: d.v, p: 0 }); sfx(560); build3d(); },
