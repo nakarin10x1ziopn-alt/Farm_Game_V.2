@@ -36,6 +36,31 @@ const ANIMALS = {
   pig: { n: 'หมู', i: '🐖', price: 59, prod: 'pork', sec: 190, bags: 3, lv: 6 },
   cow: { n: 'วัว', i: '🐄', price: 88, prod: 'milk', sec: 170, bags: 3, lv: 8 },
 };
+// 20 more animals that give a product: id, name, icon, price, seconds per product, feed bags per round, level, product id, product name, product icon, 3D body (shape, main colour, second colour, size)
+const ANIMAL_ROWS = [
+  ['quail', 'นกกระทา', '🐦', 18, 55, 1, 10, 'quailegg', 'ไข่นกกระทา', '🥚', 'bird', 0xb08a5a, 0x6d4c2a, 0.62],
+  ['goose', 'ห่าน', '🪿', 44, 120, 2, 10, 'gooseegg', 'ไข่ห่าน', '🥚', 'long', 0xffffff, 0xf08a24, 1.0],
+  ['guineafowl', 'ไก่ฟ้า', '🐔', 26, 80, 1, 11, 'guineaegg', 'ไข่ไก่ฟ้า', '🥚', 'bird', 0x6f7a86, 0xf2f2f2, 0.9],
+  ['pigeon', 'นกพิราบ', '🕊️', 24, 75, 1, 12, 'pigeonegg', 'ไข่นกพิราบ', '🪺', 'bird', 0xb7bcc4, 0x7a8896, 0.7],
+  ['rabbit', 'กระต่าย', '🐇', 46, 130, 2, 13, 'rabbitfur', 'ขนกระต่าย', '🧵', 'rabbit', 0xf4efe6, 0xf2a8b8, 0.8],
+  ['goat', 'แพะ', '🐐', 50, 150, 2, 14, 'goatmilk', 'นมแพะ', '🥛', 'quad', 0xd9d2c3, 0x5a4a3a, 0.85],
+  ['turkey', 'ไก่งวง', '🦃', 72, 180, 3, 16, 'turkeyegg', 'ไข่ไก่งวง', '🥚', 'bird', 0x7a4a2a, 0xd23a2a, 1.15],
+  ['bee', 'ผึ้ง', '🐝', 28, 90, 1, 17, 'honey', 'น้ำผึ้ง', '🍯', 'bee', 0xffc928, 0x2b2b2b, 1.0],
+  ['peacock', 'นกยูง', '🦚', 80, 200, 3, 19, 'peafeather', 'ขนนกยูง', '🪶', 'long', 0x1f7fb5, 0x2fa86a, 1.1],
+  ['swan', 'หงส์', '🦢', 84, 210, 3, 21, 'swanfeather', 'ขนหงส์', '🪶', 'long', 0xffffff, 0x2b2b2b, 1.1],
+  ['silkworm', 'หนอนไหม', '🐛', 56, 160, 2, 22, 'silk', 'ไหมดิบ', '🧵', 'worm', 0xf6f0dc, 0xd9cfa8, 1.0],
+  ['cricket', 'จิ้งหรีด', '🦗', 22, 65, 1, 24, 'cricketfood', 'จิ้งหรีดสด', '🦗', 'bee', 0x7a5a2a, 0x3a2a14, 0.9],
+  ['alpaca', 'อัลปาคา', '🦙', 110, 230, 4, 26, 'alpacawool', 'ขนอัลปาคา', '🧶', 'llama', 0xe9d9bd, 0xb89a72, 1.0],
+  ['horse', 'ม้า', '🐴', 118, 240, 4, 29, 'horsemilk', 'นมม้า', '🥛', 'quad', 0x8a5a32, 0x2b2b2b, 1.2],
+  ['buffalo', 'ควาย', '🐃', 125, 250, 4, 32, 'buffalomilk', 'นมควาย', '🥛', 'quad', 0x4a4a4e, 0x2b2b2b, 1.3],
+  ['boar', 'หมูป่า', '🐗', 130, 260, 4, 35, 'boarmeat', 'เนื้อหมูป่า', '🥩', 'quad', 0x5a4636, 0x2b2b2b, 0.9],
+  ['deer', 'กวาง', '🦌', 165, 280, 5, 39, 'antler', 'กำมะหยี่เขากวาง', '🦴', 'deer', 0xb7803f, 0xf2e6d0, 1.1],
+  ['snail', 'หอยทาก', '🐌', 58, 150, 2, 42, 'snailmucin', 'เมือกหอยทาก', '💧', 'snail', 0xd9c9a0, 0x9a6a3a, 1.0],
+  ['camel', 'อูฐ', '🐪', 175, 300, 5, 46, 'camelmilk', 'นมอูฐ', '🥛', 'camel', 0xc99a5a, 0x8a6a3a, 1.2],
+  ['ostrich', 'นกกระจอกเทศ', '🦤', 210, 320, 6, 50, 'ostrichegg', 'ไข่นกกระจอกเทศ', '🥚', 'long', 0x2b2b2b, 0xf2f2f2, 1.3],
+];
+const ANIMAL_SHAPE = {};   // 3D look of the new animals
+for (const r of ANIMAL_ROWS) { ANIMALS[r[0]] = { n: r[1], i: r[2], price: r[3], prod: r[7], sec: r[4], bags: r[5], lv: r[6] }; ANIMAL_SHAPE[r[0]] = { k: r[10], c1: r[11], c2: r[12], s: r[13] }; }
 // fish and seafood: id, name, icon, fry price, seconds to grow, level, colour, body (fish / eel / crab / shell / squid / frog / shrimp). Sale price is 3x the fry price.
 const FISH_ROWS = [
   ['tilapia', 'ปลานิล', '🐟', 5, 100, 1, 0xf0a24a, 'fish'], ['carp', 'ปลาคาร์ป', '🐠', 11, 160, 3, 0xe0443a, 'fish'], ['catfish', 'ปลาดุก', '🐡', 19, 220, 5, 0x6d5c4c, 'fish'], ['shrimp', 'กุ้งก้ามกราม', '🦐', 29, 320, 8, 0xf08a6a, 'shrimp'],
@@ -56,6 +81,7 @@ Object.assign(ITEMS, {
   egg: { n: 'ไข่ไก่', i: '🥚', base: fe(1) }, duckegg: { n: 'ไข่เป็ด', i: '🪺', base: fe(1) }, wool: { n: 'ขนแกะ', i: '🧶', base: fe(2) },
   pork: { n: 'เนื้อหมู', i: '🥩', base: fe(3) }, milk: { n: 'นมสด', i: '🥛', base: fe(3) },
 });
+for (const r of ANIMAL_ROWS) ITEMS[r[7]] = { n: r[8], i: r[9], base: fe(r[5]) };
 for (const k in FISH) ITEMS[k] = { n: FISH[k].n, i: FISH[k].i, base: FISH[k].sell };
 const RECIPES = [
   { id: 'soup', in: { tomato: 3 }, sec: 60 }, { id: 'popcorn', in: { corn: 3 }, sec: 90 }, { id: 'jam', in: { strawberry: 3 }, sec: 120 },
@@ -64,7 +90,7 @@ const RECIPES = [
 // a processed good is worth its ingredients plus ~8 %
 const PROC = { soup: ['🥫', 'ซุปมะเขือเทศ'], jam: ['🍯', 'แยมสตรอว์เบอร์รี'], popcorn: ['🍿', 'ป๊อปคอร์น'], pie: ['🥧', 'พายฟักทอง'], cheese: ['🧀', 'ชีส'], cake: ['🍰', 'เค้กไข่'], fishball: ['🍢', 'ลูกชิ้นปลา'] };
 for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], base: Math.round(Object.keys(r.in).reduce((t, k) => t + ITEMS[k].base * r.in[k], 0) * 1.08 * 10) / 10 };
-const PLOTS = [8, 10, 12, 14, 16], PENS = [3, 5, 7, 9, 12], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
+const PLOTS = [8, 10, 12, 14, 16], PENS = [6, 10, 15, 20, 26, 33, 41, 50, 60, 72], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
 // vegetable beds are bought one at a time now (up to 40), each dearer than the last but never steep, and each can be placed anywhere
 const PLOT_MAX = 40, PLOT_START = 8;
 const plotPrice = n => Math.round(20 + 2.5 * (n - PLOT_START));   // the next bed when you own n: 20 ฿ for the 9th ... 97 ฿ for the 40th
@@ -230,7 +256,7 @@ function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext
 
 // upgrades: the 10 things money is for (1-4 are the core buys: seeds, animals, fish, feed)
 const UPS = [
-  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 4, cost: [107, 320, 800, 1867], desc: l => `จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
+  { k: 'pen', n: 'ขยายคอกสัตว์', i: '🐔', max: 9, cost: [107, 320, 800, 1867, 3200, 4800, 7000, 10000, 14000], desc: l => `คอกกว้างขึ้น จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว` },
   { k: 'pond', n: 'ขยายบ่อปลา', i: '🐟', max: 4, cost: [93, 267, 693, 1600], desc: l => `ปล่อยปลาได้ ${PONDS[l]} → ${PONDS[l + 1]} ตัว` },
   { k: 'barn', n: 'ขยายยุ้งฉาง', i: '🏚️', max: 4, cost: [53, 160, 427, 1067], desc: l => `เก็บของได้ ${BARNS[l]} → ${BARNS[l + 1]} ชิ้น` },
   { k: 'sprinkler', n: 'ระบบสปริงเกอร์อัตโนมัติ', i: '💦', max: 1, cost: [320], desc: () => 'รดน้ำทุกแปลงให้เอง ผักโตเร็วขึ้น 1.5 เท่า' },
@@ -238,8 +264,14 @@ const UPS = [
   { k: 'work', n: 'โรงงานแปรรูป', i: '🏭', max: 1, cost: [400], lv: 4, desc: () => 'ทำซุป แยม ชีส พาย ขายได้มากกว่าวัตถุดิบ ~8%' },
   { k: 'truck', n: 'รถกระบะส่งของ', i: '🚚', max: 2, cost: [933, 2400], lv: 6, desc: l => `ราคาขายทุกอย่าง +${l ? 8 : 4}%` },
 ];
+const penGroups = () => { const m = {}; S.pen.forEach(a => { (m[a.a] = m[a.a] || []).push(a); }); return Object.keys(ANIMALS).filter(k => m[k]).map(k => [k, m[k]]); };
+function penUpCard() {
+  const l = S.u.pen, u = UPS.find(x => x.k === 'pen'); if (l >= u.max) return `<div class="card" style="grid-template-columns:46px 1fr"><div class="ci">🏡</div><div><h4>คอกใหญ่สุดแล้ว</h4><p>จุสัตว์ได้ ${PENS[l]} ตัว</p></div></div>`;
+  return `<div class="card"><div class="ci">🏡</div><div><h4>ขยายคอกสัตว์ (ระดับ ${l + 1}/${u.max + 1})</h4><p>คอกกว้างขึ้น จุสัตว์ ${PENS[l]} → ${PENS[l + 1]} ตัว</p></div><button class="btn" data-a="up" data-v="pen" ${S.money >= u.cost[l] ? '' : 'disabled'}>${fmt(u.cost[l])} ฿</button></div>`;
+}
 function buyUp(k) {
   const u = UPS.find(x => x.k === k), l = S.u[k]; if (l >= u.max) return; if (u.lv && S.lvl < u.lv) { toast(`ต้องเลเวล ${u.lv}`); return; }
+  if (k === 'pen') { const n = penDims(l + 1); if (S.plots.some((p, i) => { const q = plotPos(i); return q.x > n.x0 - 1.9 && q.x < n.x1 + 1.9 && q.z > n.z0 - 1.9 && q.z < n.z1 + 1.9; })) { toast('มีแปลงผักอยู่ในพื้นที่ขยายคอก ย้ายแปลงออกก่อนนะ'); return; } }
   if (!spend(u.cost[l])) return; S.u[k]++; sfx(900); toast(`${u.i} ${u.n} สำเร็จ!`);
   build3d();
 }
@@ -421,9 +453,9 @@ function render() {
       const rd = S.pen.filter(a => a.st === 'ready').length;
       return `<div class="row"><button class="btn" data-a="collall" ${rd ? '' : 'disabled'}>เก็บผลผลิตทั้งหมด (${rd})</button><button class="btn ghost" data-a="feed">ซื้ออาหาร ×10 (${supplyCost('feed', 10)} ฿)</button><button class="btn ghost" data-a="buysup" data-v="feed2" data-n="10" ${S.lvl >= SUPPLY.feed2.lv ? '' : 'disabled'}>⚡ อาหารเร่ง ×10 (${supplyCost('feed2', 10)} ฿)</button></div>
       <p class="dim" style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">🌾 อาหารสัตว์ในคลัง ${S.feed} ถุง · ⚡ อาหารเร่ง ${S.feed2 || 0} ถุง (ผลิตเร็วขึ้น 30%) · สัตว์แต่ละตัวใช้อาหาร 1–3 ถุงต่อรอบผลิต ${S.u.feeder ? '· เครื่องให้อาหารอัตโนมัติทำงานอยู่' : ''}</p>
-      <h5>สัตว์ในคอก ${S.pen.length}/${PENS[S.u.pen]}</h5>` +
-        (S.pen.map((a, i) => { const d = ANIMALS[a.a]; const st = a.st === 'ready' ? `<b class="up">พร้อมเก็บ ${ITEMS[d.prod].i}</b>` : a.st === 'idle' ? '<b class="down">หิว! ไม่มีอาหาร</b>' : `${a.pf ? '⚡ ' : ''}กำลังผลิต ${Math.max(0, Math.ceil(d.sec * (a.pf ? 0.7 : 1) - a.t))} วิ`; return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${st} · ให้ ${ITEMS[d.prod].n} ~${price(d.prod)} ฿</p></div>${a.st === 'ready' ? `<button class="btn" data-a="coll" data-v="${i}">เก็บ</button>` : `<button class="btn ghost" data-a="sellan" data-v="${i}">ขายสัตว์</button>`}</div>`; }).join('') || '<p>ยังไม่มีสัตว์</p>') +
-        `<h5>ซื้อสัตว์ใหม่</h5>` + Object.keys(ANIMALS).map(k => { const d = ANIMALS[k]; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}${promoTag('animal', k, 'ตัว')}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyan" data-v="${k}">ซื้อ 1 · ${d.price} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="3">ซื้อ 3 · ${d.price * 3 - promoCut('animal', k, 3)} ฿</button></div>`}</div>`; }).join('');
+      <h5>สัตว์ในคอก ${S.pen.length}/${PENS[S.u.pen]} · ที่ว่าง ${PENS[S.u.pen] - S.pen.length}</h5>` + penUpCard() +
+        (penGroups().map(([id, g]) => { const d = ANIMALS[id], rdy = g.filter(x => x.st === 'ready').length, hun = g.filter(x => x.st === 'idle').length; return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n} ×${g.length}</h4><p>${rdy ? `<b class="up">พร้อมเก็บ ${rdy} ${ITEMS[d.prod].i}</b>` : hun === g.length ? '<b class="down">หิว! ไม่มีอาหาร</b>' : 'กำลังผลิต'}${hun && hun < g.length ? ` · <b class="down">หิว ${hun}</b>` : ''} · ${ITEMS[d.prod].n} ~${price(d.prod)} ฿</p></div><div style="display:flex;flex-direction:column;gap:4px">${rdy ? `<button class="btn" data-a="collsp" data-v="${id}">เก็บ ${rdy}</button>` : ''}<button class="btn ghost" data-a="sellsp" data-v="${id}">ขาย 1 ตัว</button></div></div>`; }).join('') || '<p>ยังไม่มีสัตว์</p>') +
+        `<h5>ซื้อสัตว์ใหม่ (ซื้อได้เรื่อยๆ จนกว่าคอกจะเต็ม)</h5>` + Object.keys(ANIMALS).map(k => { const d = ANIMALS[k], room = PENS[S.u.pen] - S.pen.length; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}${promoTag('animal', k, 'ตัว')}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyan" data-v="${k}" ${room < 1 ? 'disabled' : ''}>ซื้อ 1 · ${d.price} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="3" ${room < 3 ? 'disabled' : ''}>ซื้อ 3 · ${d.price * 3 - promoCut('animal', k, 3)} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="10" ${room < 10 ? 'disabled' : ''}>ซื้อ 10 · ${d.price * 10 - promoCut('animal', k, 10)} ฿</button></div>`}</div>`; }).join('');
     },
     pond() {
       $('stitle').textContent = '🐟 บ่อปลา';
@@ -505,6 +537,8 @@ Object.assign(A, {
   buyan: d => { const a = ANIMALS[d.v]; if (S.pen.length >= PENS[S.u.pen]) { toast('คอกเต็ม ขยายคอกที่แท็บ ⭐'); return; } if (!spend(a.price)) return; S.pen.push({ a: d.v, st: 'idle', t: 0 }); sfx(600); build3d(); },
   buyann: d => { const n = +d.n || 3, a = ANIMALS[d.v]; if (S.pen.length + n > PENS[S.u.pen]) { toast(`คอกมีที่ไม่พอสำหรับ ${n} ตัว ขยายคอกที่แท็บ ⭐`); return; } if (!spend(a.price * n - promoCut('animal', d.v, n))) return; for (let k = 0; k < n; k++) S.pen.push({ a: d.v, st: 'idle', t: 0 }); sfx(600); build3d(); },
   buyfishn: d => { const n = +d.n || 5, f = FISH[d.v]; if (S.pond.length + n > PONDS[S.u.pond]) { toast(`บ่อมีที่ไม่พอสำหรับ ${n} ตัว ขยายบ่อที่แท็บ ⭐`); return; } if (!spend(f.price * n - promoCut('fish', d.v, n))) return; for (let k = 0; k < n; k++) S.pond.push({ f: d.v, p: 0 }); sfx(560); build3d(); },
+  collsp: d => { let n = 0; S.pen.forEach((a, i) => { if (a.a === d.v && collectAnimal(i)) n++; }); if (n) toast(`เก็บผลผลิต ${n} ชิ้น`); },
+  sellsp: d => { let j = -1; S.pen.forEach((a, i) => { if (a.a === d.v && a.st !== 'ready' && (j < 0 || S.pen[j].st !== 'idle' && a.st === 'idle')) j = i; }); if (j < 0) j = S.pen.findIndex(a => a.a === d.v); if (j >= 0) A.sellan({ v: j }); },
   sellan: d => { const a = S.pen[+d.v], g = Math.round(ANIMALS[a.a].price * 0.6); S.pen.splice(+d.v, 1); S.money += g; toast(`ขายสัตว์ได้ ${fmt(g)} ฿`); build3d(); },
   coll: d => { collectAnimal(+d.v); },
   collall: () => { let n = 0; S.pen.forEach((a, i) => { if (collectAnimal(i)) n++; }); if (n) toast(`เก็บผลผลิต ${n} ชิ้น`); },
@@ -542,7 +576,7 @@ $('barn').style.cursor = 'pointer'; $('barn').onclick = () => openTab('barn');
 $('harvest').onclick = () => { A.harvall(); A.collall(); A.fishall(); render(); hud(); };
 
 // ---------------- 3D (same look as V.1: soft sky, warm sun, rounded low-poly) ----------------
-let renderer, scene, camera, ray, root, plotObjs = [], penObjs = [], pondObjs = [], clickables = [], fishM = [], animM = [];
+let PENR = null, renderer, scene, camera, ray, root, plotObjs = [], penObjs = [], pondObjs = [], clickables = [], fishM = [], animM = [];
 const COL = [];
 const lin = c => new THREE.Color(c).convertSRGBToLinear();     // hex colours are what you see on screen (sRGB); the renderer works in linear light
 const mats = {}, mat = (c, o) => { const k = c + JSON.stringify(o || {}); return mats[k] || (mats[k] = new THREE.MeshStandardMaterial(Object.assign({ color: lin(c), roughness: 0.85, metalness: 0 }, o))); };
@@ -611,7 +645,32 @@ function cropMesh(id) {
   else { mk(g, sph, col, [0, 0.35, 0], [0.7, 0.45, 0.5]); mk(g, sph, mat(0x1f6a30), [0, 0.5, 0], [0.5, 0.3, 0.35]); }
   return g;
 }
+function newAnimal(sh) {
+  const g = new THREE.Group(), A = mat(sh.c1), B = mat(sh.c2), dk = mat(0x2b2b2b), k = sh.k;
+  const legs = (xs, zs, h, c, r = 0.07) => { for (const x of xs) for (const z of zs) mk(g, cyl, c, [x, h / 2, z], [r, h, r]); };
+  if (k === 'bird') { mk(g, sph, A, [0, 0.32, 0], [0.3, 0.26, 0.36]); mk(g, sph, A, [0, 0.6, 0.26], 0.16); mk(g, cone, B, [0, 0.58, 0.45], [0.06, 0.14, 0.06], [Math.PI / 2, 0, 0]); mk(g, cone, B, [0, 0.42, -0.4], [0.1, 0.25, 0.08], [-1.9, 0, 0]); }
+  else if (k === 'long') { mk(g, sph, A, [0, 0.42, 0], [0.3, 0.26, 0.4]); mk(g, cyl, A, [0, 0.8, 0.28], [0.07, 0.6, 0.07], [0.25, 0, 0]); mk(g, sph, A, [0, 1.12, 0.36], 0.13); mk(g, cone, B, [0, 1.1, 0.52], [0.05, 0.16, 0.05], [Math.PI / 2, 0, 0]); mk(g, cone, B, [0, 0.55, -0.45], [0.2, 0.55, 0.06], [-2.0, 0, 0]); legs([-0.1, 0.1], [0], 0.25, B, 0.03); }
+  else if (k === 'rabbit') { mk(g, sph, A, [0, 0.3, 0], [0.28, 0.26, 0.4]); mk(g, sph, A, [0, 0.5, 0.3], 0.17); for (const x of [-0.07, 0.07]) mk(g, sph, B, [x, 0.82, 0.28], [0.045, 0.22, 0.04]); mk(g, sph, mat(0xffffff), [0, 0.3, -0.42], 0.1); }
+  else if (k === 'bee') { mk(g, sph, A, [0, 0.4, 0], [0.18, 0.16, 0.26]); mk(g, box, B, [0, 0.4, -0.05], [0.2, 0.18, 0.06]); mk(g, box, B, [0, 0.4, 0.1], [0.2, 0.18, 0.06]); mk(g, sph, dk, [0, 0.42, 0.26], 0.1); for (const x of [-0.16, 0.16]) mk(g, sph, mat(0xdff3ff), [x, 0.58, 0], [0.12, 0.02, 0.2]); mk(g, box, mat(0xd9a441), [0.6, 0.15, 0], [0.5, 0.3, 0.45]); }
+  else if (k === 'worm') { for (let i = 0; i < 5; i++) mk(g, sph, i ? A : B, [0, 0.12, -0.3 + i * 0.16], [0.13, 0.12, 0.12]); mk(g, sph, dk, [0.04, 0.16, 0.5], 0.03); mk(g, sph, dk, [-0.04, 0.16, 0.5], 0.03); mk(g, cyl, mat(0x5aa63f), [0.5, 0.04, 0], [0.4, 0.03, 0.3]); }
+  else if (k === 'snail') { mk(g, sph, A, [0, 0.1, 0], [0.12, 0.1, 0.4]); mk(g, sph, B, [0, 0.3, -0.1], 0.22); mk(g, sph, A, [0, 0.2, 0.36], 0.09); for (const x of [-0.05, 0.05]) mk(g, cyl, A, [x, 0.32, 0.4], [0.015, 0.2, 0.015]); }
+  else {   // four legged: quad, llama, camel, deer
+    const big = k === 'camel' ? 1.15 : 1, tall = k === 'llama' || k === 'camel';
+    mk(g, sph, A, [0, 0.6 * big, 0], [0.4, 0.34 * big, 0.7]);
+    if (tall) { mk(g, cyl, A, [0, 1.0 * big, 0.55], [0.1, 0.6, 0.1], [0.35, 0, 0]); mk(g, sph, A, [0, 1.4 * big, 0.72], [0.14, 0.15, 0.2]); }
+    else mk(g, sph, A, [0, 0.82, 0.62], [0.22, 0.22, 0.3]);
+    if (k === 'camel') { mk(g, sph, A, [0, 1.05, -0.1], [0.22, 0.3, 0.26]); mk(g, sph, A, [0, 1.0, 0.25], [0.2, 0.28, 0.24]); }
+    const hz = tall ? 0.78 : 0.88, hy = tall ? 1.55 * big : 0.98;
+    if (k === 'deer') { for (const x of [-0.1, 0.1]) { mk(g, cyl, B, [x, 1.18, 0.62], [0.025, 0.4, 0.025], [0, 0, x > 0 ? -0.5 : 0.5]); mk(g, cyl, B, [x * 2, 1.34, 0.62], [0.02, 0.25, 0.02], [0, 0, x > 0 ? -0.9 : 0.9]); } }
+    else if (k === 'quad' && sh.c1 === 0x4a4a4e) { for (const x of [-0.22, 0.22]) mk(g, cone, mat(0xe9e0cc), [x, hy, hz - 0.2], [0.05, 0.3, 0.05], [0, 0, x > 0 ? -1.2 : 1.2]); }
+    else if (k === 'quad' && sh.c1 === 0xd9d2c3) { for (const x of [-0.1, 0.1]) mk(g, cone, B, [x, hy + 0.1, hz - 0.2], [0.04, 0.22, 0.04], [-0.3, 0, 0]); }
+    else if (k === 'llama') { for (const x of [-0.07, 0.07]) mk(g, cone, A, [x, hy, 0.82], [0.04, 0.18, 0.04]); }
+    legs([-0.25, 0.25], [-0.4, 0.4], 0.4 * big + (k === 'camel' ? 0.2 : 0), B, 0.07);
+  }
+  g.scale.setScalar(sh.s * 0.9); return g;
+}
 function animalMesh(id) {
+  if (ANIMAL_SHAPE[id]) return newAnimal(ANIMAL_SHAPE[id]);
   const g = new THREE.Group(), W = mat(0xf5f5f0), ye = mat(0xffd34d), or = mat(0xf08a24), dk = mat(0x2b2b2b);
   if (id === 'chicken') { mk(g, sph, W, [0, 0.32, 0], [0.3, 0.26, 0.36]); mk(g, sph, W, [0, 0.6, 0.26], 0.16); mk(g, box, mat(0xe0443a), [0, 0.78, 0.26], [0.04, 0.1, 0.12]); mk(g, cone, or, [0, 0.58, 0.45], [0.06, 0.14, 0.06], [Math.PI / 2, 0, 0]); mk(g, cone, mat(0xdddddd), [0, 0.42, -0.4], [0.1, 0.25, 0.08], [-1.9, 0, 0]); }
   else if (id === 'duck') { mk(g, sph, ye, [0, 0.3, 0], [0.3, 0.24, 0.38]); mk(g, sph, ye, [0, 0.6, 0.28], 0.16); mk(g, box, or, [0, 0.56, 0.46], [0.14, 0.05, 0.14]); }
@@ -629,6 +688,13 @@ const LAY = {
   barn: { x: -7.5, z: -10.5 }, stall: { x: 0, z: -10 }, work: { x: 7.5, z: -10.5 }, plaza: { x: 0, z: -6.6 },
   pen: { x: -8.6, z: -2.8 }, pond: { x: 9.2, z: -3.6 }, truck: { x: 5.2, z: 12.9 }, fountain: { x: 8.8, z: 12.3 }, house: { x: -10.2, z: 11.2 },
 };
+// the animal pen grows with each expansion: the gate and the south fence stay put, the pen spreads west and north (more room, up to 72 animals)
+const PEN_GATE_X = -8.6, PEN_Z1 = -0.2;
+function penDims(L) {
+  L = Math.max(0, Math.min(9, L == null ? (S ? S.u.pen : 0) : L));
+  const W = 6.6 + L * 1.45, D = 5.2 + L * 0.16, xe = -5.3 + Math.min(1.5, L * 0.5), x0 = xe - W, z1 = PEN_Z1, z0 = z1 - D;
+  return { W, D, x0, x1: xe, z0, z1, cx: (x0 + xe) / 2, cz: (z0 + z1) / 2 };
+}
 const ROAD_LINES = [
   { w: 2.3, pts: [[0.1, 13.8], [0.5, 10.5], [-0.5, 6.5], [0.4, 2.4], [0, -1.4], [0, -4.2], [0, -6.6]] },      // farm gate -> plaza: the main road, a gentle S between the two plot blocks
   { w: 1.8, pts: [[0, -1.4], [-2.6, -0.5], [-5.4, 0.5], [-8.6, 0.7]] },                                         // -> pen gate
@@ -654,7 +720,7 @@ function roadMesh(pts, w, y, material, uvScale) {
 const roadMats = {};
 // ground where nothing but a bed may stand: not the pen, the pond, the plaza, the market row, the truck bay or the house
 function baseFree(x, z) {
-  const penR = { x0: LAY.pen.x - 4.4, x1: LAY.pen.x + 4.4, z0: LAY.pen.z - 3.4, z1: LAY.pen.z + 3.2 };
+  const pd = penDims(), penR = { x0: pd.x0 - 1.1, x1: pd.x1 + 1.1, z0: pd.z0 - 1.0, z1: pd.z1 + 0.9 };
   return !(x > penR.x0 && x < penR.x1 && z > penR.z0 && z < penR.z1) && !(Math.hypot((x - LAY.pond.x) / 4.6, (z - LAY.pond.z) / 3.7) < 1) && !(z < -8 && z > -13.6 && Math.abs(x) < 10.5) && !(Math.hypot(x - LAY.plaza.x, z - LAY.plaza.z) < 3.2) && !(Math.hypot(x - LAY.truck.x, z - LAY.truck.z) < 2.2) && !(x > -12.9 && x < -7.2 && z > 9.2 && z < 13.8);
 }
 const nearRoad = (x, z, r) => { for (const p of ROADPTS) if (Math.hypot(p[0] - x, p[1] - z) < r) return true; return false; };
@@ -723,7 +789,6 @@ function build3d() {
   // roads first, so everything else can keep off them
   for (const R of ROAD_LINES) { const c = new THREE.CatmullRomCurve3(R.pts.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'catmullrom', 0.5); for (let i = 0; i <= 40; i++) { const p = c.getPoint(i / 40); ROADPTS.push([p.x, p.z]); } }
   { const px = LAY.plaza; for (let a = 0; a < 12; a++) ROADPTS.push([px.x + Math.cos(a / 12 * 6.283) * 2, px.z + Math.sin(a / 12 * 6.283) * 2]); ROADPTS.push([px.x, px.z]); }
-  const penR = { x0: LAY.pen.x - 4.4, x1: LAY.pen.x + 4.4, z0: LAY.pen.z - 3.4, z1: LAY.pen.z + 3.2 };
   const free = (x, z) => !nearRoad(x, z, 2.1) && baseFree(x, z) && !S.plots.some((p, i) => { const q = plotPos(i); return Math.abs(x - q.x) < 1.5 && Math.abs(z - q.z) < 1.5; });
   // ground
   const gt = grassTex(); mk(root, new THREE.PlaneGeometry(150, 150), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, 10], 1, [-Math.PI / 2, 0, 0]).castShadow = false;
@@ -757,14 +822,18 @@ function build3d() {
   if (S.u.work) { const w = new THREE.Group(); w.position.set(LAY.work.x, 0, LAY.work.z); root.add(w); mk(w, box, mat(0x90a4ae), [0, 1.2, 0], [2.8, 2.4, 2.4]); mk(w, box, mat(0x546e7a), [0, 2.55, 0], [3, 0.3, 2.6]); mk(w, cyl, mat(0xcfd8dc), [0.8, 3.3, 0], [0.28, 1.6, 0.28]); mk(w, box, mat(0x4fc3f7), [-0.5, 1.4, 1.22], [1, 0.8, 0.04]); click(w, 'work', 0); COL.push({ t: 'c', x: LAY.work.x, z: LAY.work.z, r: 2 }); const wb = bub('🏭'); wb.position.set(LAY.work.x, 4.4, LAY.work.z); root.add(wb); }
   if (S.u.truck) { const t = new THREE.Group(); t.position.set(LAY.truck.x, 0, LAY.truck.z); t.rotation.y = -1.45; root.add(t); COL.push({ t: 'c', x: LAY.truck.x, z: LAY.truck.z, r: 1.4 }); mk(t, box, mat(S.u.truck > 1 ? 0xe0443a : 0x3e7cc8), [0, 0.7, 0], [1.2, 0.7, 2.4]); mk(t, box, mat(0xf5f5f0), [0, 1.2, 0.7], [1.1, 0.6, 0.9]); for (const x of [-0.6, 0.6]) for (const z of [-0.8, 0.8]) mk(t, cyl, mat(0x222222), [x, 0.3, z], [0.3, 0.2, 0.3], [0, 0, Math.PI / 2]); }
   // pen with fence (the gate faces the road)
-  const PX = LAY.pen.x, PZ = LAY.pen.z, pen = new THREE.Group(); pen.position.set(PX, 0, PZ); root.add(pen);
-  const fw = mat(0xb08968);
-  for (const [x, z, w, d] of [[0, -2.6, 6.6, 0.08], [-3.3, 0, 0.08, 5.2], [3.3, 0, 0.08, 5.2], [-2.15, 2.6, 2.3, 0.08], [2.15, 2.6, 2.3, 0.08]]) { mk(pen, box, fw, [x, 0.55, z], [w, 0.1, d]); mk(pen, box, fw, [x, 0.3, z], [w, 0.1, d]); COL.push({ t: 'b', x: PX + x, z: PZ + z, hw: w / 2 + 0.1, hd: d / 2 + 0.1 }); }
-  for (let i = -3; i <= 3; i++) for (const z of [-2.6, 2.6]) if (z < 0 || Math.abs(i * 1.1) > 1.2) mk(pen, box, fw, [i * 1.1, 0.4, z], [0.12, 0.8, 0.12]);
-  mk(pen, box, mat(0xa88b57), [0, 0.02, 0], [6.4, 0.04, 5], undefined).castShadow = false;
-  for (const x of [-1.25, 1.25]) mk(pen, box, mat(0x6d4c41), [x, 0.7, 2.6], [0.16, 1.4, 0.16]);       // gate posts
-  const pc = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 5), new THREE.MeshBasicMaterial({ visible: false })); pc.rotation.x = -Math.PI / 2; pc.position.y = 0.05; pen.add(pc); click(pc, 'pen', -1);
-  S.pen.forEach((a, i) => { const m = animalMesh(a.a); m.position.set(rnd(-2.6, 2.6), 0, rnd(-2, 2)); m.userData.pn = { x: m.position.x, z: m.position.z, tx: m.position.x, tz: m.position.z, w: rnd(0, 3) }; pen.add(m); const b = bub(ITEMS[ANIMALS[a.a].prod].i); b.visible = false; b.position.y = 1.7; m.add(b); m.userData.b = b; click(m, 'animal', i); animM.push(m); });
+  const PD = penDims(), pen = new THREE.Group(); root.add(pen); PENR = PD;
+  const fw = mat(0xb08968), GX = PEN_GATE_X, GH = 1.25;
+  // rails: north wall, west wall, east wall, and the south wall with a gate gap
+  const rails = [[PD.cx, PD.z0, PD.W, 0.08], [PD.x0, PD.cz, 0.08, PD.D], [PD.x1, PD.cz, 0.08, PD.D], [(PD.x0 + GX - GH) / 2, PD.z1, GX - GH - PD.x0, 0.08], [(PD.x1 + GX + GH) / 2, PD.z1, PD.x1 - GX - GH, 0.08]];
+  for (const [x, z, w, d] of rails) { mk(pen, box, fw, [x, 0.55, z], [w, 0.1, d]); mk(pen, box, fw, [x, 0.3, z], [w, 0.1, d]); COL.push({ t: 'b', x, z, hw: w / 2 + 0.1, hd: d / 2 + 0.1 }); }
+  const post = (x, z) => mk(pen, box, fw, [x, 0.4, z], [0.12, 0.8, 0.12]);
+  for (let x = PD.x0; x <= PD.x1 + 0.01; x += 1.1) { post(x, PD.z0); if (x < GX - GH - 0.2 || x > GX + GH + 0.2) post(x, PD.z1); }
+  for (let z = PD.z0; z <= PD.z1 + 0.01; z += 1.1) { post(PD.x0, z); post(PD.x1, z); }
+  mk(pen, box, mat(0xa88b57), [PD.cx, 0.02, PD.cz], [PD.W - 0.2, 0.04, PD.D - 0.2], undefined).castShadow = false;
+  for (const x of [GX - GH, GX + GH]) mk(pen, box, mat(0x6d4c41), [x, 0.7, PD.z1], [0.16, 1.4, 0.16]);       // gate posts
+  const pc = new THREE.Mesh(new THREE.PlaneGeometry(PD.W - 0.2, PD.D - 0.2), new THREE.MeshBasicMaterial({ visible: false })); pc.rotation.x = -Math.PI / 2; pc.position.set(PD.cx, 0.05, PD.cz); pen.add(pc); click(pc, 'pen', -1);
+  S.pen.forEach((a, i) => { const m = animalMesh(a.a); m.position.set(rnd(PD.x0 + 0.7, PD.x1 - 0.7), 0, rnd(PD.z0 + 0.7, PD.z1 - 0.7)); m.userData.pn = { tx: m.position.x, tz: m.position.z, w: rnd(0, 3) }; pen.add(m); const b = bub(ITEMS[ANIMALS[a.a].prod].i); b.visible = false; b.position.y = 1.7; m.add(b); m.userData.b = b; click(m, 'animal', i); animM.push(m); });
   // pond: an oval with a sandy shore, rocks, reeds, lily pads and a little jetty at the end of its own road
   const QX = LAY.pond.x, QZ = LAY.pond.z, pond = new THREE.Group(); pond.position.set(QX, 0, QZ); root.add(pond);
   mk(pond, cyl, mat(0xd9c9a2), [0, 0.035, 0], [4.0, 0.08, 3.1]).castShadow = false; mk(pond, cyl, mat(0x6f5d3f), [0, 0.06, 0], [3.65, 0.06, 2.8]).castShadow = false;
@@ -816,7 +885,7 @@ function anim(dt) {
   if (NIGHT.moon && NIGHT.moon.visible) { NIGHT.moon.lookAt(camera.position); }
   const bg = root && root.userData.barn; if (bg) { const tr = used() <= 0 ? 0 : Math.min(4, Math.ceil(used() / cap() * 4)); if (tr !== bg.userData.tier) fillBarn(bg, tr); }
   animM.forEach((m, i) => { const a = S.pen[i]; if (!a) return; const n = m.userData.pn; n.w -= dt;
-    if (a.st === 'ready' || n.w > 0) { m.position.y = a.st === 'ready' ? Math.abs(Math.sin(t * 4 + i)) * 0.12 : 0; } else { if (Math.hypot(n.tx - m.position.x, n.tz - m.position.z) < 0.15) { n.tx = rnd(-2.7, 2.7); n.tz = rnd(-2.1, 2.1); n.w = rnd(1, 4); } const dx = n.tx - m.position.x, dz = n.tz - m.position.z, d = Math.hypot(dx, dz) || 1; m.position.x += dx / d * dt * 0.7; m.position.z += dz / d * dt * 0.7; m.rotation.y = Math.atan2(dx, dz); m.position.y = Math.abs(Math.sin(t * 8 + i)) * 0.05; }
+    if (a.st === 'ready' || n.w > 0) { m.position.y = a.st === 'ready' ? Math.abs(Math.sin(t * 4 + i)) * 0.12 : 0; } else { if (Math.hypot(n.tx - m.position.x, n.tz - m.position.z) < 0.15) { n.tx = rnd(PENR.x0 + 0.7, PENR.x1 - 0.7); n.tz = rnd(PENR.z0 + 0.7, PENR.z1 - 0.7); n.w = rnd(1, 4); } const dx = n.tx - m.position.x, dz = n.tz - m.position.z, d = Math.hypot(dx, dz) || 1; m.position.x += dx / d * dt * 0.7; m.position.z += dz / d * dt * 0.7; m.rotation.y = Math.atan2(dx, dz); m.position.y = Math.abs(Math.sin(t * 8 + i)) * 0.05; }
     m.userData.b.visible = a.st === 'ready'; });
   fishM.forEach((m, i) => { const f = S.pond[i]; if (!f) return; const s = m.userData.fs; s.a += dt * s.sp; m.position.set(Math.cos(s.a) * s.r * 1.35, 0.17, Math.sin(s.a) * s.r); m.rotation.y = -s.a + (s.sp > 0 ? -Math.PI / 2 : Math.PI / 2); const sc = 0.55 + 0.45 * Math.min(1, f.p / FISH[f.f].sec); m.userData.b.visible = fishReady(f); m.scale.setScalar(sc * 1.4); });
   if (root && root.userData.wm) root.userData.wm.rotation.z += dt * 1.2;
@@ -951,10 +1020,10 @@ function targets() {
     else if (!p.w) add(d, '💧', `รดน้ำ ${CROPS[p.c].n}`, () => water(i));
     else add(d + 0.8, CROPS[p.c].i, `${CROPS[p.c].n} กำลังโต`, () => { const left = Math.ceil((CROPS[p.c].sec - p.p) / 1.5); toast(`${CROPS[p.c].i} อีก ${left >= 60 ? Math.ceil(left / 60) + ' นาที' : left + ' วิ'}`); });
   });
-  if (Math.abs(P.x - LAY.pen.x) < 4.6 && Math.abs(P.z - LAY.pen.z) < 3.7) {
+  { const pd = penDims(); if (P.x > pd.x0 - 0.6 && P.x < pd.x1 + 0.6 && P.z > pd.z0 - 0.6 && P.z < pd.z1 + 0.9) {
     const rd = S.pen.filter(a => a.st === 'ready').length;
     if (rd) add(0.4, '🧺', `เก็บผลผลิตสัตว์ (${rd})`, () => A.collall()); else add(1.2, '🐾', 'ดูคอกสัตว์', () => openTab('pen'));
-  }
+  } }
   if (at(LAY.pond.x - 1.6, LAY.pond.z + 1.2) < 4.6) { const rd = S.pond.filter(fishReady).length; if (rd) add(0.4, '🎣', `จับปลา (${rd})`, () => { A.fishall(); build3d(); }); else add(1.2, '🐟', 'ดูบ่อปลา', () => openTab('pond')); }
   if (at(-7.7, 12.3) < 3.0) add(at(-7.7, 12.3), S.en < TIRED ? '😮‍💨' : '🏠', S.en < TIRED ? 'บ้าน (พักผ่อน)' : 'บ้านของฉัน', () => openTab('home'));
   if (at(0, -9) < 3.2) add(at(0, -9), '🏪', 'ตลาด', () => openTab('market'));
@@ -1040,6 +1109,7 @@ function sanitize(S, raw) {
   if (S.job && !(RECIPES.some(r => r.id === S.job.id))) S.job = null; else if (S.job) S.job.t = num(S.job.t, 0, 0);
   if (!Array.isArray(S.hist)) S.hist = []; if (!S.led || typeof S.led !== 'object') S.led = null;
   if (!S.stats || typeof S.stats !== 'object') S.stats = { earned: 0 }; S.stats.earned = num(S.stats.earned, 0, 0);
+  { const n = penDims(S.u.pen); S.plots.forEach((p, i) => { if (typeof p.x === 'number' && p.x > n.x0 - 1.9 && p.x < n.x1 + 1.9 && p.z > n.z0 - 1.9 && p.z < n.z1 + 1.9) { delete p.x; delete p.z; } }); }   // a bed standing where the bigger pen now is goes back to its standard slot
   S.px = num(S.px, 0, BOUND.x0, BOUND.x1); S.pz = num(S.pz, 10.5, BOUND.z0, BOUND.z1); S.last = num(S.last, Date.now(), 0, Date.now());
 }
 async function startGame(n, name) {
