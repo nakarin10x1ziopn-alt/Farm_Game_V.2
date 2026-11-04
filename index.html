@@ -67,6 +67,7 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
 .row .btn { flex: 1; }
 .up { color: #8be07a; } .down { color: #ff9a8a; }
 .pill { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; background: rgba(255,255,255,0.12); margin-left: 4px; }
+body.placing #joy { display: none !important; }
 #tip { position: absolute; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center; background: rgba(5,14,9,0.7); padding: 20px; }
 #tip .box { padding: 20px; max-width: 360px; font-size: 14.5px; line-height: 1.6; }
 #tip h2 { margin: 0 0 8px; font-family: var(--font-display); font-weight: 500; color: var(--sun); }
@@ -151,7 +152,7 @@ h5 { margin: 12px 2px 6px; font-size: 13px; color: var(--sun); font-weight: 500;
     <button data-a="tab" data-v="up"><b>⭐</b>เมนู</button>
   </div>
   <div id="sheet" hidden><div class="box"><h3><span id="stitle"></span><button data-a="close">✕</button></h3><div id="sbody"></div></div></div>
-  <div id="tip" hidden><div class="box panel"><h2>ยินดีต้อนรับสู่ไร่สุขใจ 2</h2>
+  <div id="tip" hidden><div class="box panel" style="position:relative"><button class="btn ghost" data-a="tipok" aria-label="ปิด" style="position:absolute;right:8px;top:8px;padding:2px 10px;min-height:0">✕</button><h2 style="padding-right:36px">ยินดีต้อนรับสู่ไร่สุขใจ 2</h2>
     <div>🕹️ ลากจอยสติ๊กซ้ายเพื่อเดิน · ลากนิ้วบนฉากเพื่อหมุนกล้อง<br>🌱 เดินไปที่แปลงแล้วกดปุ่มกลมขวาเพื่อปลูก / รดน้ำ / เก็บเกี่ยว<br>🐔 เดินใกล้คอกเพื่อเก็บไข่ นม ขนแกะ · 🐟 เดินไปริมบ่อเพื่อจับปลา<br>🏪 เดินไปที่ร้านตลาดเพื่อขาย แล้วเอาเงินไปขยายฟาร์มที่แท็บ ⭐<br><br>เกมเดินต่อแม้ปิดหน้าจอ ผักสัตว์และปลายังโตตามเวลาจริง</div>
     <div class="row" style="margin-top:14px"><button class="btn" data-a="tipok">เริ่มทำฟาร์ม!</button></div></div></div>
   <div id="title">

@@ -353,6 +353,31 @@ function plotSpotErr(x, z, ign) {
   return '';
 }
 let PLC = null, PICK = false, plcBar = null, plcOv = null, NOSLOT = false;
+// v28: on a phone or tablet the bed is moved by dragging a finger: touch it (or touch anywhere) and slide it over the farm; the walking joystick is hidden meanwhile
+const PD28 = { id: null, tx: null, tz: null, ox: 0, oz: 0, ray: null, plane: null, hit: null, v2: null };
+function ground28(e) {
+  if (!PD28.ray) { PD28.ray = new THREE.Raycaster(); PD28.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); PD28.hit = new THREE.Vector3(); PD28.v2 = new THREE.Vector2(); }
+  const r = $('c').getBoundingClientRect(); PD28.v2.set((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  PD28.ray.setFromCamera(PD28.v2, camera); return PD28.ray.ray.intersectPlane(PD28.plane, PD28.hit) ? { x: PD28.hit.x, z: PD28.hit.z } : null;
+}
+function placeDown28(e) {
+  if (!(PLC || PICK) || e.pointerType === 'mouse' || tab) return false;
+  if (PD28.id !== null) return true;
+  const g = ground28(e); if (!g) return false;
+  if (PICK) {                                                   // tap a bed to pick it up (no need to walk to it)
+    let best = null; S.plots.forEach((p, i) => { const o = plotPos(i), d = Math.hypot(g.x - o.x, g.z - o.z); if (d < 1.9 && (!best || d < best.d)) best = { d, i }; });
+    if (!best) { toast('แตะที่แปลงที่ต้องการย้าย'); return true; }
+    startPlace(best.i, 'move'); const o = plotPos(best.i); PD28.tx = o.x; PD28.tz = o.z; PD28.ox = 0; PD28.oz = 0; PD28.id = e.pointerId; return true;
+  }
+  const cx = PD28.tx != null ? PD28.tx : PLC.x, cz = PD28.tz != null ? PD28.tz : PLC.z;
+  if (Math.hypot(g.x - cx, g.z - cz) < 2.4) { PD28.ox = cx - g.x; PD28.oz = cz - g.z; } else { PD28.ox = 0; PD28.oz = 0; }
+  PD28.tx = g.x + PD28.ox; PD28.tz = g.z + PD28.oz; PD28.id = e.pointerId; return true;
+}
+function placeMove28(e) {
+  if (PD28.id === null) return false; if (e.pointerId !== PD28.id) return true;
+  const g = ground28(e); if (g) { PD28.tx = g.x + PD28.ox; PD28.tz = g.z + PD28.oz; } return true;
+}
+function placeUp28(e) { if (PD28.id !== null && e.pointerId === PD28.id) { PD28.id = null; return true; } return false; }
 const snap5 = v => Math.round(v * 2) / 2;
 function plcUI() {
   if (plcBar) return plcBar;
@@ -364,26 +389,27 @@ function startPlace(i, mode) {
   const o = plotObjs[i]; if (!o) return; PICK = false; const q = plotPos(i);
   PLC = { i, mode, old: { x: q.x, z: q.z }, x: q.x, z: q.z, err: '' };
   if (!plcOv) { plcOv = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.4), new THREE.MeshBasicMaterial({ color: 0x44ff66, transparent: true, opacity: 0.4, depthWrite: false })); plcOv.rotation.x = -Math.PI / 2; plcOv.position.y = 0.34; }
-  o.g.add(plcOv); plcUI(); toast(mode === 'new' ? 'เดินไปยังจุดที่ต้องการ แปลงจะตามอยู่ข้างหน้า สีเขียว = วางได้' : `ย้ายแปลง ${i + 1}: เดินไปยังจุดใหม่ แล้วกด วางที่นี่`);
+  o.g.add(plcOv); plcUI(); toast(mode === 'new' ? 'ลากนิ้วบนจอเพื่อเลื่อนแปลงไปวาง สีเขียว = วางได้' : `ย้ายแปลง ${i + 1}: ลากนิ้วไปยังจุดใหม่ แล้วกด วางที่นี่`);
 }
 function placeStep() {
-  const bar = plcUI(); bar.hidden = !(PLC || PICK) || !!tab;
-  if (!PLC) { if (PICK) $('plctxt').textContent = '✋ โหมดย้ายแปลง: เดินไปใกล้แปลงที่ต้องการ แล้วกดปุ่มกลมเพื่อหยิบ'; $('plcok').style.display = 'none'; return; }
+  const bar = plcUI(); bar.hidden = !(PLC || PICK) || !!tab; document.body.classList.toggle('placing', !!(PLC || PICK) && !tab); if (!(PLC || PICK) && PD28.tx != null) { PD28.id = null; PD28.tx = PD28.tz = null; }
+  if (!PLC) { if (PICK) $('plctxt').textContent = '✋ โหมดย้ายแปลง: แตะที่แปลงที่ต้องการย้าย (หรือเดินไปใกล้แล้วกดปุ่มกลม)'; $('plcok').style.display = 'none'; return; }
   $('plcok').style.display = '';
-  PLC.x = snap5(Math.max(BOUND.x0 + 1.4, Math.min(BOUND.x1 - 1.4, P.x + Math.sin(P.rot) * 2.8))); PLC.z = snap5(Math.max(BOUND.z0 + 1.4, Math.min(BOUND.z1 - 1.4, P.z + Math.cos(P.rot) * 2.8)));
+  { const wx = PD28.tx != null ? PD28.tx : P.x + Math.sin(P.rot) * 2.8, wz = PD28.tz != null ? PD28.tz : P.z + Math.cos(P.rot) * 2.8;
+    PLC.x = snap5(Math.max(BOUND.x0 + 1.4, Math.min(BOUND.x1 - 1.4, wx))); PLC.z = snap5(Math.max(BOUND.z0 + 1.4, Math.min(BOUND.z1 - 1.4, wz))); }
   if (PLC.x !== PLC.lx || PLC.z !== PLC.lz) { PLC.lx = PLC.x; PLC.lz = PLC.z; PLC.err = plotSpotErr(PLC.x, PLC.z, PLC.i); }
   const o = plotObjs[PLC.i]; if (!o) { PLC = null; return; }
   if (plcOv.parent !== o.g) o.g.add(plcOv);
   o.g.position.set(PLC.x, 0, PLC.z); plcOv.material.color.set(PLC.err ? 0xff4444 : 0x44ff66);
-  $('plctxt').textContent = PLC.err ? '⛔ วางตรงนี้ไม่ได้: ' + PLC.err : `✅ วางแปลง ${PLC.i + 1} ตรงนี้ได้ · เดินเพื่อเลื่อน`;
+  $('plctxt').textContent = PLC.err ? '⛔ วางตรงนี้ไม่ได้: ' + PLC.err : `✅ วางแปลง ${PLC.i + 1} ตรงนี้ได้ · ลากนิ้วเพื่อเลื่อน`;
 }
-function plcEnd() { if (plcOv && plcOv.parent) plcOv.parent.remove(plcOv); PLC = null; PICK = false; if (plcBar) plcBar.hidden = true; }
+function plcEnd() { if (plcOv && plcOv.parent) plcOv.parent.remove(plcOv); PLC = null; PICK = false; PD28.id = null; PD28.tx = PD28.tz = null; document.body.classList.remove('placing'); if (plcBar) plcBar.hidden = true; }
 // ---------------- sheets ----------------
 let tab = null;
 const A = {};
 Object.assign(A, {
   buyplots: d => buyPlots(+d.n || 1, false), buyplotm: () => buyPlots(1, true),
-  pickmode: () => { if (PLC) return; PICK = true; closeSheet(); toast('✋ โหมดย้ายแปลง: เดินไปใกล้แปลงที่ต้องการ แล้วกดปุ่มกลม'); },
+  pickmode: () => { if (PLC) return; PICK = true; closeSheet(); toast('✋ โหมดย้ายแปลง: แตะที่แปลงที่ต้องการย้าย แล้วลากนิ้วไปวาง'); },
   plcok: () => {
     if (!PLC) { PICK = false; return; }
     PLC.err = plotSpotErr(PLC.x, PLC.z, PLC.i); if (PLC.err) { toast('วางตรงนี้ไม่ได้: ' + PLC.err); return; }
@@ -1078,9 +1104,9 @@ function bindInput() {
   const jend = e => { if (e.pointerId === JOY.id) { JOY.id = null; JOY.x = JOY.y = 0; knob.style.transform = ''; } };
   joy.addEventListener('pointerup', jend); joy.addEventListener('pointercancel', jend);
   const cv = $('c'); let drag = null;
-  cv.addEventListener('pointerdown', e => { drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; CAM.yaw -= (e.clientX - drag.x) * 0.008; CAM.pitch = Math.max(0.12, Math.min(1.15, CAM.pitch + (e.clientY - drag.y) * 0.005)); drag.x = e.clientX; drag.y = e.clientY; });
-  const dend = e => { if (drag && e.pointerId === drag.id) drag = null; }; cv.addEventListener('pointerup', dend); cv.addEventListener('pointercancel', dend);
+  cv.addEventListener('pointerdown', e => { try { cv.setPointerCapture(e.pointerId); } catch (x) { } if (placeDown28(e)) return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; });
+  cv.addEventListener('pointermove', e => { if (placeMove28(e)) return; if (!drag || e.pointerId !== drag.id) return; CAM.yaw -= (e.clientX - drag.x) * 0.008; CAM.pitch = Math.max(0.12, Math.min(1.15, CAM.pitch + (e.clientY - drag.y) * 0.005)); drag.x = e.clientX; drag.y = e.clientY; });
+  const dend = e => { if (placeUp28(e)) return; if (drag && e.pointerId === drag.id) drag = null; }; cv.addEventListener('pointerup', dend); cv.addEventListener('pointercancel', dend);
   $('act').addEventListener('click', doAct);
   addEventListener('keydown', e => {
     if (e.target && /INPUT|TEXTAREA/.test(e.target.tagName)) return;
@@ -1161,7 +1187,8 @@ async function startGame(n, name) {
   const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update.nd = 1; update(off); update.nd = 0; if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }
   P.x = S.px || 0; P.z = S.pz || 10.5; P.rot = Math.PI; CAM.yaw = 0; CF.init = 0; V.x = V.z = 0; LT.key = '';
   if (!renderer) { init3d(); playerG = makePlayer(); scene.add(playerG); } else build3d();
-  $('title').hidden = true; hud(); save(); if (!S.tip) $('tip').hidden = false;
+  const isNew28 = typeof name === 'string'; if (isNew28) S.tip = 1;                       // v28: the how-to-play card shows once, when a new save is created (and is never asked for again)
+  $('title').hidden = true; hud(); save(); $('tip').hidden = !isNew28;
   if (!loopOn) { loopOn = true; lastT = performance.now(); requestAnimationFrame(loop); }
 }
 function loop(now) {
