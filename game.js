@@ -31,8 +31,11 @@ if (typeof MORE_VEG_DATA !== 'undefined') {
   MORE_VEG_DATA.forEach((r, i) => { const sec = Math.round(40 + i * 7 + (i % 5) * 6), seed = Math.max(3, Math.round(sec * (0.1 + 0.1 * i / 89))); CROP_ROWS.push([r[0], r[1], r[2], seed, sec, 2 + Math.floor(i * 1.1), r[4], 'veg', r[3], r[5]]); });
   MORE_FRUIT_DATA.forEach((r, i) => { const sec = Math.round(200 + i * 9 + (i % 4) * 8), seed = Math.max(8, Math.round(sec * (0.12 + 0.1 * i / 89))); CROP_ROWS.push([r[0], r[1], r[2], seed, sec, 4 + Math.floor(i * 1.3), r[4], 'fruit', r[3], r[5]]); });
 }
+if (typeof MORE2 !== 'undefined') { const R2 = MORE2.cropRows(CROP_ROWS.map(r => r[1])); R2.veg.concat(R2.fruit).forEach(r => CROP_ROWS.push(r)); }   // v31: +300 vegetables, +300 fruits
+// v31: a grower's margin is not the same for every crop: sale = seed x 2.3-3.1 (older crops) or the margin stored in the row (new crops, 1.8-3.1)
+const oldMargin = id => { let h = 2166136261; for (const c of id) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return 2.3 + ((h >>> 0) % 9) / 10; };
 const CROPS = {};
-for (const r of CROP_ROWS.slice().sort((a, b) => a[5] - b[5])) CROPS[r[0]] = { n: r[1], i: r[2], seed: r[3], sec: r[4], sell: M(r[3]), lv: r[5], col: r[6], k: r[7], sh: r[8], lf: r[9] };
+for (const r of CROP_ROWS.slice().sort((a, b) => a[5] - b[5])) CROPS[r[0]] = { n: r[1], i: r[2], seed: r[3], sec: r[4], sell: Math.round(r[3] * (r[10] || oldMargin(r[0])) * 10) / 10, x: r[0][0] === 'x' ? 1 : 0, lv: r[5], col: r[6], k: r[7], sh: r[8], lf: r[9] };
 // an animal eats `bags` feed bags per round and gives one product worth 3x that feed
 const ANIMALS = {
   chicken: { n: 'ไก่', i: '🐔', price: 16, prod: 'egg', sec: 60, bags: 1, lv: 1 },
@@ -64,9 +67,10 @@ const ANIMAL_ROWS = [
   ['camel', 'อูฐ', '🐪', 175, 300, 5, 46, 'camelmilk', 'นมอูฐ', '🥛', 'camel', 0xc99a5a, 0x8a6a3a, 1.2],
   ['ostrich', 'นกกระจอกเทศ', '🦤', 210, 320, 6, 50, 'ostrichegg', 'ไข่นกกระจอกเทศ', '🥚', 'long', 0x2b2b2b, 0xf2f2f2, 1.3],
 ];
+if (typeof MORE2 !== 'undefined') MORE2.animalRows(ANIMAL_ROWS.map(r => r[1]).concat(['ไก่', 'เป็ด', 'แกะ', 'หมู', 'วัว'])).forEach(r => ANIMAL_ROWS.push(r));   // v31: +200 animals
 const ANIMAL_SHAPE = {};   // 3D look of the new animals
 const ANI_LV = lv => lv <= 14 ? lv : Math.round(14 + (lv - 14) * (120 - 14) / (50 - 14));   // the 20 newer animals unlock between Lv.10 and Lv.120 instead of Lv.50
-for (const r of ANIMAL_ROWS) { ANIMALS[r[0]] = { n: r[1], i: r[2], price: r[3], prod: r[7], sec: r[4], bags: r[5], lv: ANI_LV(r[6]) }; ANIMAL_SHAPE[r[0]] = { k: r[10], c1: r[11], c2: r[12], s: r[13] }; }
+for (const r of ANIMAL_ROWS) { ANIMALS[r[0]] = { n: r[1], i: r[2], price: r[3], prod: r[7], sec: r[4], bags: r[5], lv: r[0].startsWith('xa') ? r[6] : ANI_LV(r[6]), x: r[0].startsWith('xa') ? 1 : 0 }; ANIMAL_SHAPE[r[0]] = { k: r[10], c1: r[11], c2: r[12], s: r[13] }; }
 // fish and seafood: id, name, icon, fry price, seconds to grow, level, colour, body (fish / eel / crab / shell / squid / frog / shrimp). Sale price is 3x the fry price.
 const FISH_ROWS = [
   ['tilapia', 'ปลานิล', '🐟', 5, 100, 1, 0xf0a24a, 'fish'], ['carp', 'ปลาคาร์ป', '🐠', 11, 160, 3, 0xe0443a, 'fish'], ['catfish', 'ปลาดุก', '🐡', 19, 220, 5, 0x6d5c4c, 'fish'], ['shrimp', 'กุ้งก้ามกราม', '🦐', 29, 320, 8, 0xf08a6a, 'shrimp'],
@@ -88,7 +92,7 @@ Object.assign(ITEMS, {
   egg: { n: 'ไข่ไก่', i: '🥚', base: fe(1) }, duckegg: { n: 'ไข่เป็ด', i: '🪺', base: fe(1) }, wool: { n: 'ขนแกะ', i: '🧶', base: fe(2) },
   pork: { n: 'เนื้อหมู', i: '🥩', base: fe(3) }, milk: { n: 'นมสด', i: '🥛', base: fe(3) },
 });
-for (const r of ANIMAL_ROWS) ITEMS[r[7]] = { n: r[8], i: r[9], base: fe(r[5]) };
+for (const r of ANIMAL_ROWS) ITEMS[r[7]] = { n: r[8], i: r[9], base: r[0].startsWith('xa') ? Math.max(fe(r[5]), Math.round(r[3] * 0.14 * 10) / 10) : fe(r[5]) };
 for (const k in FISH) ITEMS[k] = { n: FISH[k].n, i: FISH[k].i, base: FISH[k].sell };
 const RECIPES = [
   { id: 'soup', in: { tomato: 3 }, sec: 60 }, { id: 'popcorn', in: { corn: 3 }, sec: 90 }, { id: 'jam', in: { strawberry: 3 }, sec: 120 },
@@ -113,12 +117,12 @@ Object.assign(PROC, {
   driedmango: ['🥭', 'มะม่วงอบแห้ง'], chilidip: ['🌶️', 'น้ำพริกสด'],
 });
 for (const r of RECIPES) ITEMS[r.id] = { n: PROC[r.id][1], i: PROC[r.id][0], base: Math.round(Object.keys(r.in).reduce((t, k) => t + ITEMS[k].base * r.in[k], 0) * 1.08 * 10) / 10 };
-const PLOTS = [8, 10, 12, 14, 16], PENS = [6, 10, 15, 20, 26, 33, 41, 50, 60, 72], PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
+const PLOTS = [8, 10, 12, 14, 16], PENS = [6, 10, 15, 20, 26, 33, 41, 50, 60, 72].map(x => x * 3), PONDS = [3, 5, 7, 9, 12], BARNS = [60, 120, 200, 320, 500];
 // vegetable beds are bought one at a time now (up to 40), each dearer than the last but never steep, and each can be placed anywhere
 const PLOT_MAX = 3000, PLOT_SOFT = 40, PLOT_START = 8;   // no fixed limit: beds can be bought until the farm has no free spot (3000 is only a safety stop)
 const plotPrice = n => n <= 40 ? Math.round(20 + 2.5 * (n - PLOT_START)) : Math.min(160, Math.round(100 + (n - 40) * 0.4));   // the next bed when you own n: 20 ฿ for the 9th, 97 ฿ for the 40th, then it rises slowly from 100 ฿ and stops at 160 ฿
 // the farm is bigger than before: the old farm in the middle, a new field area to the south
-const BOUND = { x0: -85, x1: 85, z0: -13.5, z1: 160 };   // about ten times the old farm (it was x -27..27, z -13.5..40)
+const BOUND = { x0: -380, x1: 380, z0: -13.5, z1: 760 };   // v31: 760 x 773 m, about 20 times the area of the 170 x 173 m farm it was   // about ten times the old farm (it was x -27..27, z -13.5..40)
 const DECOS = [
   { id: 'tree', n: 'ต้นไม้ผลไม้', i: '🌳', price: 53 }, { id: 'flower', n: 'แปลงดอกไม้', i: '🌻', price: 107 }, { id: 'gazebo', n: 'ศาลาพักผ่อน', i: '🛖', price: 320 },
   { id: 'fountain', n: 'น้ำพุกลางฟาร์ม', i: '⛲', price: 800 }, { id: 'windmill', n: 'กังหันลม', i: '🌬️', price: 1600 },
@@ -178,13 +182,21 @@ let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { 
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
 const day = () => S.dayN;
 // levels go up to 300: a little slower per level than before, and from level 150 every next level takes steadily longer (x2.5 at the end)
-const MAXLV = 300, xpNeed = l => Math.round(55 * Math.pow(l, 1.5) * (l > 150 ? 1 + (l - 150) / 100 : 1));
+const MAXLV = 2000, xpNeed0 = l => Math.round(55 * Math.pow(l, 1.5) * (l > 150 ? 1 + (l - 150) / 100 : 1));
+// v31: up to level 2000. Levels 1-300 need exactly what they always did (saves keep their progress); after 300 the need grows slowly (x8 at level 2000), while crops and animals of a higher level give more xp (bigXp), so a level takes a steady, not endless, time
+const xpNeed = l => (l <= 300 ? xpNeed0(l) : Math.round(xpNeed0(300) * Math.pow(l / 300, 1.1))), bigXp = (lv, sec, cap) => Math.max(2, Math.round(xpNeed(lv) * (sec / 60) / ((25 + 20 * lv / 2000) * Math.min(cap, 60 + lv / 8))));   // xp of one harvest of a level-lv crop (cap = how many beds / animals a keen player has then): about 25 min per level at level 130, 45 min at 2000
 const cap = () => BARNS[S.u.barn] + (S.home && S.home.store ? 30 : 0), used = () => Object.values(S.inv).reduce((a, b) => a + b, 0), room = () => cap() - used();
 const prestige = () => Object.keys(S.deco).length * 0.3 + (S.deco.fountain ? 0.5 : 0) + (S.home && S.home.vase ? 0.4 : 0);
 const hash = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
 // the market price moves in slow waves: a 12-24 day swing and a 31-53 day swing per item, so a price rises for days, peaks, then eases back (never a sudden jump).
 // It is always between 1.0x and 1.3x of the base, and the base is 3x the buying price, so everything sells for at least 3x what it cost
-const factor = (id, d) => { const h1 = hash(id + ':a'), h2 = hash(id + ':b'), P1 = 12 + h1 % 13, P2 = 31 + h2 % 23, f1 = (h1 >>> 8) % 628 / 100, f2 = (h2 >>> 8) % 628 / 100; return 1 + 0.3 * (0.5 + 0.5 * (0.65 * Math.sin(2 * Math.PI * d / P1 + f1) + 0.35 * Math.sin(2 * Math.PI * d / P2 + f2))); };
+// v31: prices follow dated cycles like the real market. Every item has its own cycle (28-64 farm days) with a fixed HIGH window (out of season / short supply: up to +35 %), a fixed LOW window (harvest glut: down to -22 %)
+// and ordinary days in between (+-3 %). The windows have start and end dates, shown in the market, so you can plan when to sell and when to hold.
+const cyc = id => { const h = hash(id + ':c'), C = 28 + h % 37, hl = 5 + (h >>> 6) % 8, ll = 5 + (h >>> 10) % 8, h0 = (h >>> 14) % C, gap = Math.max(1, C - hl - ll - 4), l0 = (h0 + hl + 2 + (h >>> 18) % gap) % C; return { C, h0, hl, l0, ll, hv: 1.2 + (h >>> 22) % 16 / 100, lv: 0.78 + (h >>> 26) % 12 / 100 }; };
+const inWin = (d, st, len, C) => { const r = (((d - 1 - st) % C) + C) % C; return r < len ? r : -1; };
+const factor = (id, d) => { const c = cyc(id), a = inWin(d, c.h0, c.hl, c.C), b = inWin(d, c.l0, c.ll, c.C); if (a >= 0) return 1 + (c.hv - 1) * Math.min(1, Math.sin(Math.PI * (a + 0.5) / c.hl) * 1.5); if (b >= 0) return 1 - (1 - c.lv) * Math.min(1, Math.sin(Math.PI * (b + 0.5) / c.ll) * 1.5); return 1 + ((hash(id + ':' + d) % 61) - 30) / 1000; };
+// the next dated windows (start, end) at or after day d: [high, low]
+const winDates = (id, d) => { const c = cyc(id), out = []; for (const [st, len] of [[c.h0, c.hl], [c.l0, c.ll]]) { for (let k = -1; k < 3; k++) { const from = 1 + st + k * c.C; if (from + len - 1 >= d) { out.push({ from, to: from + len - 1, on: d >= from }); break; } } } return out; };
 const bonus = () => 1 + [0, 0.04, 0.08][S.u.truck] + prestige() / 100;
 const price = id => Math.round(ITEMS[id].base * factor(id, day()) * bonus() * 10) / 10;
 const trend = id => factor(id, day()) - factor(id, day() - 1);
@@ -200,7 +212,7 @@ const dealOf = d => {   // three deals a farm day: two seeds and one supply, the
   return [{ t: 'seed', id: a, off: 0.25 }, { t: 'seed', id: b, off: 0.15 }, { t: ['feed', 'feed2', 'fert'][(h >>> 13) % 3], id: ['feed', 'feed2', 'fert'][(h >>> 13) % 3], off: 0.2 }];
 };
 const dealFor = (t, id) => (dealOf(day()).find(x => x.t === t && x.id === id) || { off: 0 }).off;
-const seedUnit = id => Math.max(1, Math.round(CROPS[id].seed * (1 - dealFor('seed', id))));
+const seedUnit = id => Math.max(1, Math.round(CROPS[id].seed * (1 - dealFor('seed', id)) * (1 + (factor(id, day()) - 1) * 0.3)));
 const supplyUnit = k => Math.max(1, Math.round(SUPPLY[k].price * (1 - dealFor(k, k))));
 // ---- promotions: every buyable thing has a timed offer counted in farm days; when it ends the normal price is back ----
 const promoWin = (period, len, off, d) => { const r = (((d - 1 + off) % period) + period) % period; if (r < len) return { on: true, from: d - r, to: d - r + len - 1 }; const from = d + (period - r); return { on: false, from, to: from + len - 1 }; };
@@ -226,7 +238,7 @@ function ledAdd(g, n) {
 }
 const catOf = id => (CROPS[id] ? (CROPS[id].k === 'fruit' ? 'ผลไม้' : 'ผัก') : FISH[id] ? 'ปลาและอาหารทะเล' : RECIPES.some(r => r.id === id) ? 'แปรรูป' : 'ผลผลิตสัตว์');
 const CATS = [['ผัก', '🥕'], ['ผลไม้', '🍎'], ['ผลผลิตสัตว์', '🥚'], ['ปลาและอาหารทะเล', '🐟'], ['แปรรูป', '🥫']];
-const isGood = id => factor(id, day()) >= 1.2;
+const isGood = id => factor(id, day()) >= 1.15;
 function toast(t) { const d = document.createElement('div'); d.className = 't'; d.textContent = t; $('toast').appendChild(d); while ($('toast').children.length > 3) $('toast').firstChild.remove(); setTimeout(() => d.classList.add('out'), 2200); setTimeout(() => d.remove(), 2700); }
 // energy: it drains slowly while you work; tired (< 25) means slower walking and 20 % less xp, rested (>= 80) gives 10 % more xp. Sleeping or a nap at home restores it
 const TIRED = 25;
@@ -272,9 +284,9 @@ function plant(i) {
 }
 function harvestPlot(i) {
   const p = S.plots[i]; if (!cropReady(p)) return false;
-  if (!addItem(p.c, 1)) return false; gainXp(Math.max(2, Math.round(CROPS[p.c].sell * XPF / 4))); p.c = null; p.p = 0; p.w = 0; p.f = 0; sfx(700); return true;
+  if (!addItem(p.c, 1)) return false; gainXp(CROPS[p.c].x || CROPS[p.c].lv >= 100 ? bigXp(CROPS[p.c].lv, CROPS[p.c].sec, 300) : Math.max(2, Math.round(CROPS[p.c].sell * XPF / 4))); p.c = null; p.p = 0; p.w = 0; p.f = 0; sfx(700); return true;
 }
-function collectAnimal(i) { const a = S.pen[i]; if (a.st !== 'ready') return false; const pr = ANIMALS[a.a].prod; if (!addItem(pr, 1)) return false; gainXp(Math.max(2, Math.round(ITEMS[pr].base * XPF / 6))); a.st = 'idle'; a.t = 0; sfx(640); return true; }
+function collectAnimal(i) { const a = S.pen[i]; if (a.st !== 'ready') return false; const pr = ANIMALS[a.a].prod; if (!addItem(pr, 1)) return false; gainXp(ANIMALS[a.a].x || ANIMALS[a.a].lv >= 100 ? bigXp(ANIMALS[a.a].lv, ANIMALS[a.a].sec, 216) : Math.max(2, Math.round(ITEMS[pr].base * XPF / 6))); a.st = 'idle'; a.t = 0; sfx(640); return true; }
 function harvestFish(i) { const f = S.pond[i]; if (!fishReady(f)) return false; if (!addItem(f.f, 1)) return false; gainXp(Math.max(2, Math.round(FISH[f.f].sell * XPF / 4))); S.pond.splice(i, 1); sfx(600); return true; }
 function sell(id, n) { n = Math.min(n, S.inv[id] || 0); if (n <= 0) return 0; const g = Math.round(price(id) * n); S.inv[id] -= n; if (!S.inv[id]) delete S.inv[id]; S.money += g; S.stats.earned += g; ledAdd(g, n); gainXp(Math.ceil(g * XPF / 40)); sfx(880); return g; }
 function sfx(f) { try { const A = sfx.ctx || (sfx.ctx = new (window.AudioContext || window.webkitAudioContext)()), o = A.createOscillator(), g = A.createGain(); o.frequency.value = f; o.type = 'sine'; g.gain.value = 0.05; o.connect(g); g.connect(A.destination); o.start(); g.gain.exponentialRampToValueAtTime(0.0001, A.currentTime + 0.14); o.stop(A.currentTime + 0.15); } catch (e) { } }
@@ -321,7 +333,7 @@ function withdraw(n) { n = Math.min(n, S.bank); if (n <= 0) return; S.bank -= n;
 // ---------------- vegetable beds: buy up to 40, place them anywhere ----------------
 const OLDPOS = j => ({ x: LAY.plotX[j % 4], z: j < 16 ? LAY.plotZ - Math.floor(j / 4) * LAY.plotDz : 17 + Math.floor((j - 16) / 4) * LAY.plotDz });
 let _grid = null;
-const slotGrid = () => { if (_grid) return _grid; _grid = []; for (let x = BOUND.x0 + 3; x <= BOUND.x1 - 3; x += 2.2) for (let z = 14; z <= BOUND.z1 - 3; z += 2.2) _grid.push({ x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 }); _grid.sort((a, b) => Math.hypot(a.x, a.z - 26) - Math.hypot(b.x, b.z - 26)); return _grid; };
+const slotGrid = () => { if (_grid) return _grid; _grid = []; for (let x = -82 - Math.floor((-82 - (BOUND.x0 + 3)) / 2.2) * 2.2; x <= BOUND.x1 - 3; x += 2.2) for (let z = 14; z <= BOUND.z1 - 3; z += 2.2) _grid.push({ x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10 }); _grid.sort((a, b) => Math.hypot(a.x, a.z - 26) - Math.hypot(b.x, b.z - 26)); return _grid; };
 const DEFPOS = j => j < PLOT_SOFT ? OLDPOS(j) : (slotGrid()[j - PLOT_SOFT] || OLDPOS(j));   // the first 40 beds sit exactly where they always did   // the tidy default rows (the first 16 are where they always were)
 const plotPos = i => { const p = S && S.plots[i]; return p && typeof p.x === 'number' && typeof p.z === 'number' ? { x: p.x, z: p.z } : DEFPOS(i); };
 const overlapPlot = (x, z, ign) => S.plots.some((p, i) => { if (i === ign) return false; const q = plotPos(i); return Math.abs(q.x - x) < 2.15 && Math.abs(q.z - z) < 2.15; });
@@ -408,6 +420,7 @@ function plcEnd() { if (plcOv && plcOv.parent) plcOv.parent.remove(plcOv); PLC =
 let tab = null;
 const A = {};
 Object.assign(A, {
+  more: d => { UIN[d.k] = (UIN[d.k] || 50) + 50; },
   buyplots: d => buyPlots(+d.n || 1, false), buyplotm: () => buyPlots(1, true),
   pickmode: () => { if (PLC) return; PICK = true; closeSheet(); toast('✋ โหมดย้ายแปลง: แตะที่แปลงที่ต้องการย้าย แล้วลากนิ้วไปวาง'); },
   plcok: () => {
@@ -431,7 +444,11 @@ let farmF = 'all', shopF = 'all', mktTab = 'sell';
 const NOTE = 'style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim);line-height:1.45"';
 const growT = sec => (sec >= 60 ? Math.round(sec / 60 * 10) / 10 + ' นาที' : sec + ' วิ');
 const chip = (act, v, label, on) => `<button class="btn${on ? '' : ' ghost'}" style="flex:1;min-width:0;padding:7px 6px;font-size:13px" data-a="${act}" data-v="${v}">${label}</button>`;
-const cropList = f => Object.keys(CROPS).filter(k => f === 'veg' ? CROPS[k].k === 'veg' : f === 'fruit' ? CROPS[k].k === 'fruit' : f === 'stock' ? (S.seeds[k] || 0) > 0 : true).sort((a, b) => (CROPS[a].lv > S.lvl) - (CROPS[b].lv > S.lvl));
+const UIN = {}, UIT = {};   // how many rows a long list shows (50, +50 each tap) and how many it has
+const capList = (key, arr) => { UIT[key] = arr.length; return arr.slice(0, UIN[key] || 50); };
+const moreBtn = key => (UIT[key] > (UIN[key] || 50) ? `<div class="row"><button class="btn ghost" data-a="more" data-k="${key}">แสดงเพิ่ม (เหลืออีก ${UIT[key] - (UIN[key] || 50)} รายการ)</button></div>` : '');
+const cropList = f => capList(tab === 'farm' ? 'farm' : 'shop', cropListAll(f));
+const cropListAll = f => Object.keys(CROPS).filter(k => f === 'veg' ? CROPS[k].k === 'veg' : f === 'fruit' ? CROPS[k].k === 'fruit' : f === 'stock' ? (S.seeds[k] || 0) > 0 : true).sort((a, b) => { const la = CROPS[a].lv > S.lvl, lb = CROPS[b].lv > S.lvl; return la !== lb ? la - lb : la ? CROPS[a].lv - CROPS[b].lv : CROPS[b].lv - CROPS[a].lv; });   // newest unlocked first, then the next ones to unlock
 const FILT = [['all', 'ทั้งหมด'], ['veg', '🥕 ผัก'], ['fruit', '🍎 ผลไม้'], ['stock', '🎒 มีในคลัง']];
 function farmHTML() {
   const empty = S.plots.filter(p => !p.c).length, rd = S.plots.filter(cropReady).length, list = cropList(farmF);
@@ -449,6 +466,7 @@ function farmHTML() {
     const c = CROPS[k], sel = S.sel === k, st = S.seeds[k] || 0, off = dealFor('seed', k), u = seedUnit(k);
     return `<div class="card${lock(c.lv)}"><div class="ci">${c.i}</div><div><h4>${c.n}${sel ? '<span class="pill">เลือกอยู่</span>' : ''}${st ? `<span class="pill">🎒 ×${st}</span>` : ''}</h4><p>เมล็ด ${u} ฿${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · โต ${growT(c.sec)} · ขาย ~${price(k)} ฿ <span class="${trend(k) >= 0 ? 'up' : 'down'}">${trend(k) >= 0 ? '▲' : '▼'}</span></p></div>${c.lv > S.lvl ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<button class="btn${sel ? ' ghost' : ''}" data-a="sel" data-v="${k}">${sel ? '✓' : 'เลือก'}</button>`}</div>`;
   }).join('') || '<p style="color:var(--ink-dim)">ยังไม่มีเมล็ดในคลัง ซื้อได้ที่ 🏪 ตลาด แท็บ 🛒 ซื้อ</p>';
+  h += moreBtn('farm');
   return h;
 }
 function sellHTML() {
@@ -463,8 +481,8 @@ function sellHTML() {
     const sub = items.reduce((a, k) => a + price(k) * S.inv[k], 0), n = items.reduce((a, k) => a + S.inv[k], 0);
     h += `<h5>${ic} ${cat} · ${n} ชิ้น ≈ ${fmt(sub)} ฿</h5><div class="row"><button class="btn ghost" data-a="sellcat" data-v="${cat}">ขายทั้งหมวด ${cat}</button></div>`;
     h += items.map(k => {
-      const it = ITEMS[k], f = factor(k, day()), pc = Math.round((f - 1) * 100), tag = f >= 1.2 ? '<b class="up">🔥 ราคาดี</b>' : f < 1.08 ? '<b class="down">⏳ ราคาต่ำ</b>' : 'ราคาปกติ', t = trend(k);
-      return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tag} <span class="${t >= 0 ? 'up' : 'down'}">${t >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(t * 100))}%</span><br>รวม ≈ ${fmt(price(k) * S.inv[k])} ฿</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 10 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="10">ขาย 10</button>` : ''}${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`;
+      const it = ITEMS[k], f = factor(k, day()), pc = Math.round((f - 1) * 100), tag = f >= 1.15 ? '<b class="up">🔥 ราคาดี</b>' : f <= 0.93 ? '<b class="down">⏳ ราคาต่ำ</b>' : 'ราคาปกติ', t = trend(k), wd = winDates(k, day()), wtxt = `<br><small>📅 ช่วงราคาสูง วันที่ ${wd[0].from}–${wd[0].to}${wd[0].on ? ' (กำลังอยู่)' : ''} · ช่วงราคาต่ำ วันที่ ${wd[1].from}–${wd[1].to}${wd[1].on ? ' (กำลังอยู่)' : ''}</small>`;
+      return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tag} <span class="${t >= 0 ? 'up' : 'down'}">${t >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(t * 100))}%</span>${wtxt}<br>รวม ≈ ${fmt(price(k) * S.inv[k])} ฿</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 10 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="10">ขาย 10</button>` : ''}${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`;
     }).join('');
   }
   return h;
@@ -485,6 +503,7 @@ function shopHTML() {
     const c = CROPS[k], lk = c.lv > S.lvl, off = dealFor('seed', k), st = S.seeds[k] || 0;
     return `<div class="card${lk ? ' lock' : ''}"><div class="ci">${c.i}</div><div><h4>${c.n}${st ? `<span class="pill">🎒 ×${st}</span>` : ''}</h4><p>${seedUnit(k)} ฿/ถุง${off ? ` <b class="up">🔥 −${Math.round(off * 100)}%</b>` : ''} · โต ${growT(c.sec)} · ขาย ~${price(k)} ฿${promoTag('seed', k, 'ถุง')}</p></div>${lk ? `<span class="pill">🔒 Lv.${c.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px">${[5, 10, 20].map(q => `<button class="btn${q === 5 ? '' : ' ghost'}" data-a="buyseed" data-v="${k}" data-n="${q}" ${S.money >= seedCost(k, q) ? '' : 'disabled'}>×${q} · ${fmt(seedCost(k, q))} ฿</button>`).join('')}</div>`}</div>`;
   }).join('') || '<p style="color:var(--ink-dim)">ไม่มีรายการ</p>';
+  h += moreBtn('shop');
   return h;
 }
 // price board: today's price of everything with how much a crop or fish earns per minute of growing
@@ -513,7 +532,7 @@ function render() {
       <p class="dim" style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">🌾 อาหารสัตว์ในคลัง ${S.feed} ถุง · ⚡ อาหารเร่ง ${S.feed2 || 0} ถุง (ผลิตเร็วขึ้น 30%) · สัตว์แต่ละตัวใช้อาหาร 1–3 ถุงต่อรอบผลิต ${S.u.feeder ? '· เครื่องให้อาหารอัตโนมัติทำงานอยู่' : ''}</p>
       <h5>สัตว์ในคอก ${S.pen.length}/${PENS[S.u.pen]} · ที่ว่าง ${PENS[S.u.pen] - S.pen.length}</h5>` + penUpCard() +
         (penGroups().map(([id, g]) => { const d = ANIMALS[id], rdy = g.filter(x => x.st === 'ready').length, hun = g.filter(x => x.st === 'idle').length; return `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n} ×${g.length}</h4><p>${rdy ? `<b class="up">พร้อมเก็บ ${rdy} ${ITEMS[d.prod].i}</b>` : hun === g.length ? '<b class="down">หิว! ไม่มีอาหาร</b>' : 'กำลังผลิต'}${hun && hun < g.length ? ` · <b class="down">หิว ${hun}</b>` : ''} · ${ITEMS[d.prod].n} ~${price(d.prod)} ฿</p></div><div style="display:flex;flex-direction:column;gap:4px">${rdy ? `<button class="btn" data-a="collsp" data-v="${id}">เก็บ ${rdy}</button>` : ''}<button class="btn ghost" data-a="sellsp" data-v="${id}">ขาย 1 ตัว</button></div></div>`; }).join('') || '<p>ยังไม่มีสัตว์</p>') +
-        `<h5>ซื้อสัตว์ใหม่ (ซื้อได้เรื่อยๆ จนกว่าคอกจะเต็ม)</h5>` + Object.keys(ANIMALS).map(k => { const d = ANIMALS[k], room = PENS[S.u.pen] - S.pen.length; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}${promoTag('animal', k, 'ตัว')}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyan" data-v="${k}" ${room < 1 ? 'disabled' : ''}>ซื้อ 1 · ${d.price} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="3" ${room < 3 ? 'disabled' : ''}>ซื้อ 3 · ${d.price * 3 - promoCut('animal', k, 3)} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="10" ${room < 10 ? 'disabled' : ''}>ซื้อ 10 · ${d.price * 10 - promoCut('animal', k, 10)} ฿</button></div>`}</div>`; }).join('');
+        `<h5>ซื้อสัตว์ใหม่ (ซื้อได้เรื่อยๆ จนกว่าคอกจะเต็ม)</h5>` + capList('ani', Object.keys(ANIMALS).sort((a, b) => { const la = ANIMALS[a].lv > S.lvl, lb = ANIMALS[b].lv > S.lvl; return la !== lb ? la - lb : la ? ANIMALS[a].lv - ANIMALS[b].lv : ANIMALS[b].lv - ANIMALS[a].lv; })).map(k => { const d = ANIMALS[k], room = PENS[S.u.pen] - S.pen.length; return `<div class="card${lock(d.lv)}"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>${d.price} ฿ · ใช้อาหาร ${d.bags} ถุง/รอบ · ${ITEMS[d.prod].i} ${ITEMS[d.prod].n} ทุก ${d.sec >= 60 ? Math.round(d.sec / 60 * 10) / 10 + ' นาที' : d.sec + ' วิ'}${promoTag('animal', k, 'ตัว')}</p></div>${d.lv > S.lvl ? `<span class="pill">🔒 Lv.${d.lv}</span>` : `<div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="buyan" data-v="${k}" ${room < 1 ? 'disabled' : ''}>ซื้อ 1 · ${d.price} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="3" ${room < 3 ? 'disabled' : ''}>ซื้อ 3 · ${d.price * 3 - promoCut('animal', k, 3)} ฿</button><button class="btn ghost" data-a="buyann" data-v="${k}" data-n="10" ${room < 10 ? 'disabled' : ''}>ซื้อ 10 · ${d.price * 10 - promoCut('animal', k, 10)} ฿</button></div>`}</div>`; }).join('') + moreBtn('ani');
     },
     pond() {
       $('stitle').textContent = '🐟 บ่อปลา';
@@ -569,7 +588,7 @@ function render() {
       h += `<h5>📦 ผลผลิตในยุ้ง</h5>`;
       if (ids.length) {
         h += `<div class="row"><button class="btn" data-a="sellall">ขายทั้งหมด ≈ ${fmt(val)} ฿</button><button class="btn ghost" data-a="tab" data-v="market">🏪 ไปตลาด</button></div>`;
-        h += ids.map(k => { const it = ITEMS[k], f = factor(k, day()), tip = f > 1.2 ? '<b class="up">🔥 ราคาดี ควรขาย</b>' : f < 1.08 ? '<b class="down">⏳ ราคาต่ำ รอก่อนได้</b>' : 'ราคาปกติ', rc = S.u.work ? RECIPES.filter(r => r.in[k]).map(r => `${ITEMS[r.id].i}${ITEMS[r.id].n} ได้ ${Math.floor(S.inv[k] / r.in[k])} ชุด`).filter(x => !/ 0 ชุด$/.test(x)).join(' · ') : '';
+        h += ids.map(k => { const it = ITEMS[k], f = factor(k, day()), tip = f > 1.15 ? '<b class="up">🔥 ราคาดี ควรขาย</b>' : f <= 0.93 ? '<b class="down">⏳ ราคาต่ำ รอก่อนได้</b>' : 'ราคาปกติ', rc = S.u.work ? RECIPES.filter(r => r.in[k]).map(r => `${ITEMS[r.id].i}${ITEMS[r.id].n} ได้ ${Math.floor(S.inv[k] / r.in[k])} ชุด`).filter(x => !/ 0 ชุด$/.test(x)).join(' · ') : '';
           return `<div class="card"><div class="ci">${it.i}</div><div><h4>${it.n} ×${S.inv[k]}</h4><p>${price(k)} ฿/ชิ้น · ${tip}${rc ? `<br>🏭 แปรรูปได้: ${rc}` : ''}</p></div><div style="display:flex;flex-direction:column;gap:4px"><button class="btn" data-a="sell" data-v="${k}" data-n="all">ขายหมด</button>${S.inv[k] > 1 ? `<button class="btn ghost" data-a="sell" data-v="${k}" data-n="1">ขาย 1</button>` : ''}</div></div>`; }).join('');
       } else h += '<p style="color:var(--ink-dim)">ยุ้งฉางว่างอยู่ ไปเก็บเกี่ยวผลผลิตจากแปลง คอก หรือบ่อปลาก่อนนะ</p>';
       return h;
@@ -750,7 +769,7 @@ const LAY = {
 const PEN_GATE_X = -8.6, PEN_Z1 = -0.2;
 function penDims(L) {
   L = Math.max(0, Math.min(9, L == null ? (S ? S.u.pen : 0) : L));
-  const W = 6.6 + L * 1.45, D = 5.2 + L * 0.16, xe = -5.3 + Math.min(1.5, L * 0.5), x0 = xe - W, z1 = PEN_Z1, z0 = z1 - D;
+  const W = (6.6 + L * 1.45) * 3, D = 5.2 + L * 0.16, xe = -5.3 + Math.min(1.5, L * 0.5), x0 = xe - W, z1 = PEN_Z1, z0 = z1 - D;
   return { W, D, x0, x1: xe, z0, z1, cx: (x0 + xe) / 2, cz: (z0 + z1) / 2 };
 }
 const ROAD_LINES = [
@@ -852,19 +871,32 @@ function build3d() {
   const plotNear = (x, z) => { const cx = Math.floor(x / 3), cz = Math.floor(z / 3); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const l = pcell.get((cx + a) + ',' + (cz + b)); if (l) for (const q of l) if (Math.abs(x - q.x) < 1.5 && Math.abs(z - q.z) < 1.5) return true; } return false; };
   const free = (x, z) => !nearRoad(x, z, 2.1) && baseFree(x, z) && !plotNear(x, z);
   // ground
-  const gt = grassTex().clone(); gt.repeat.set(86, 86); gt.needsUpdate = true; mk(root, new THREE.PlaneGeometry(480, 480), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, 70], 1, [-Math.PI / 2, 0, 0]).castShadow = false;   // same grass tile size as before, over the bigger farm
+  const gt = grassTex().clone(); gt.repeat.set(233, 233); gt.needsUpdate = true; mk(root, new THREE.PlaneGeometry(1300, 1300), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }), [0, 0, 373], 1, [-Math.PI / 2, 0, 0]).castShadow = false;   // same grass tile size as before, over the bigger farm
   // roads: a darker gravel edge, then the dirt surface, and a stone plaza where they meet
   { const dt = dirtTex(); roadMats.edge = roadMats.edge || new THREE.MeshStandardMaterial({ color: lin(0x8c7a55), roughness: 1, side: THREE.DoubleSide }); roadMats.top = roadMats.top || new THREE.MeshStandardMaterial({ map: dt, roughness: 1, side: THREE.DoubleSide });
     for (const R of ROAD_LINES) { root.add(roadMesh(R.pts, R.w + 0.5, 0.022, roadMats.edge, 3)); root.add(roadMesh(R.pts, R.w, 0.03, roadMats.top, 2.4)); }
     const pl = LAY.plaza; mk(root, cyl, mat(0x8c7a55), [pl.x, 0.02, pl.z], [2.75, 0.03, 2.75]).castShadow = false; const pt = mk(root, cyl, new THREE.MeshStandardMaterial({ map: dt, roughness: 1 }), [pl.x, 0.04, pl.z], [2.5, 0.03, 2.5]); pt.castShadow = false;
     for (let a = 0; a < 18; a++) { const an = a / 18 * 6.283; mk(root, sph, mat(a % 2 ? 0x9e9e9e : 0xb3aea2), [pl.x + Math.cos(an) * 2.62, 0.07, pl.z + Math.sin(an) * 2.62], [0.2, 0.12, 0.2]); } }
-  // grass tufts and wild flowers, only where nothing stands
-  { const blade = new THREE.InstancedMesh(new THREE.ConeGeometry(0.06, 0.55, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), 5200), dm = new THREE.Object3D(), gc = [0x6aa84a, 0x5a9a3e, 0x7bb656, 0x4f8a37];
-    let n = 0; for (let k = 0; k < 40000 && n < 5200; k++) { const x = rnd(BOUND.x0 + 1, BOUND.x1 - 1), z = rnd(BOUND.z0 + 1, BOUND.z1 - 1); if (!free(x, z)) continue; dm.position.set(x, 0.25, z); dm.rotation.set(rnd(-0.25, 0.25), rnd(0, 6), rnd(-0.25, 0.25)); dm.scale.setScalar(rnd(0.7, 1.5)); dm.updateMatrix(); blade.setMatrixAt(n, dm.matrix); blade.setColorAt(n, lin(gc[n % 4])); n++; }
-    blade.count = n; blade.instanceMatrix.needsUpdate = true; if (blade.instanceColor) blade.instanceColor.needsUpdate = true; root.add(blade);
-    const fl = new THREE.InstancedMesh(new THREE.SphereGeometry(0.09, 6, 5), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 }), 900), fc = [0xf2f2ea, 0xffd23f, 0xf08aa0, 0xb69be0, 0xff8a65]; let m2 = 0;
-    for (let k = 0; k < 14000 && m2 < 900; k++) { const x = rnd(BOUND.x0 + 1, BOUND.x1 - 1), z = rnd(BOUND.z0 + 1, BOUND.z1 - 1); if (!free(x, z)) continue; dm.position.set(x, 0.32, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(rnd(0.8, 1.3)); dm.updateMatrix(); fl.setMatrixAt(m2, dm.matrix); fl.setColorAt(m2, lin(fc[m2 % 5])); m2++; }
-    fl.count = m2; fl.instanceMatrix.needsUpdate = true; if (fl.instanceColor) fl.instanceColor.needsUpdate = true; root.add(fl); }
+  // grass tufts, wild flowers and groves of trees, only where nothing stands. The world is big, so they are built in 95 m chunks and only the chunks near the player are drawn
+  { const CHK = 95, nx = Math.ceil((BOUND.x1 - BOUND.x0) / CHK), nz = Math.ceil((BOUND.z1 - BOUND.z0) / CHK), dm = new THREE.Object3D(), gc = [0x6aa84a, 0x5a9a3e, 0x7bb656, 0x4f8a37], fc = [0xf2f2ea, 0xffd23f, 0xf08aa0, 0xb69be0, 0xff8a65];
+    const nearFarm = (x, z) => x > -110 && x < 110 && z < 215, ok = (x, z) => !nearFarm(x, z) || free(x, z);
+    const trunkG = new THREE.CylinderGeometry(0.17, 0.22, 1.8, 6), crownG = new THREE.SphereGeometry(1, 8, 6), bladeG = new THREE.ConeGeometry(0.06, 0.55, 5), flG = new THREE.SphereGeometry(0.09, 6, 5);
+    const trunkM = new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 1 }), crownM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), bladeM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }), flM = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+    const gs = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35]; const CHUNKS = (root.userData.chunks = []);
+    for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
+      const X0 = BOUND.x0 + ix * CHK, Z0 = BOUND.z0 + iz * CHK, cx = X0 + CHK / 2, cz = Z0 + CHK / 2, grp = new THREE.Group(), area = CHK * CHK / (170 * 173.5);
+      const nB = Math.round(5200 * area * 0.55), nF = Math.round(900 * area * 0.7), nT = nearFarm(cx, cz) ? 0 : Math.round(70 * (0.4 + (hash(ix + ':' + iz) % 100) / 100));
+      const blade = new THREE.InstancedMesh(bladeG, bladeM, nB), fl = new THREE.InstancedMesh(flG, flM, nF), tr = new THREE.InstancedMesh(trunkG, trunkM, nT), cr = new THREE.InstancedMesh(crownG, crownM, nT * 2);
+      let b = 0, f = 0, t = 0, c = 0;
+      for (let k = 0; k < nB * 3 && b < nB; k++) { const x = rnd(X0, X0 + CHK), z = rnd(Math.max(Z0, BOUND.z0 + 1), Z0 + CHK); if (x < BOUND.x0 + 1 || x > BOUND.x1 - 1 || z > BOUND.z1 - 1 || !ok(x, z)) continue; dm.position.set(x, 0.25, z); dm.rotation.set(rnd(-0.25, 0.25), rnd(0, 6), rnd(-0.25, 0.25)); dm.scale.setScalar(rnd(0.7, 1.5)); dm.updateMatrix(); blade.setMatrixAt(b, dm.matrix); blade.setColorAt(b, lin(gc[b % 4])); b++; }
+      for (let k = 0; k < nF * 3 && f < nF; k++) { const x = rnd(X0, X0 + CHK), z = rnd(Math.max(Z0, BOUND.z0 + 1), Z0 + CHK); if (x < BOUND.x0 + 1 || x > BOUND.x1 - 1 || z > BOUND.z1 - 1 || !ok(x, z)) continue; dm.position.set(x, 0.32, z); dm.rotation.set(0, 0, 0); dm.scale.setScalar(rnd(0.8, 1.3)); dm.updateMatrix(); fl.setMatrixAt(f, dm.matrix); fl.setColorAt(f, lin(fc[f % 5])); f++; }
+      for (let k = 0; k < nT * 3 && t < nT; k++) { const x = rnd(X0, X0 + CHK), z = rnd(Math.max(Z0, BOUND.z0 + 3), Z0 + CHK), sc = rnd(0.9, 1.7); if (x < BOUND.x0 + 3 || x > BOUND.x1 - 3 || z > BOUND.z1 - 3) continue;
+        dm.position.set(x, 0.9 * sc, z); dm.rotation.set(0, 0, 0); dm.scale.set(sc, sc, sc); dm.updateMatrix(); tr.setMatrixAt(t, dm.matrix); t++;
+        for (const [ox, oy, oz, r] of [[0, 2.5, 0, 1.25], [0.55, 2.0, 0.25, 0.85]]) { dm.position.set(x + ox * sc, oy * sc, z + oz * sc); dm.scale.setScalar(r * sc); dm.updateMatrix(); cr.setMatrixAt(c, dm.matrix); cr.setColorAt(c, lin(gs[(t + c) % 4])); c++; } }
+      blade.count = b; fl.count = f; tr.count = t; cr.count = c;
+      for (const m of [blade, fl, tr, cr]) { if (!m.count) { m.geometry = null; continue; } m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.frustumCulled = false; if (m === tr || m === cr) { m.castShadow = false; } grp.add(m); }
+      grp.userData.c = { x: cx, z: cz }; grp.visible = false; root.add(grp); CHUNKS.push(grp); }
+    root.userData.chunkStep = () => { const px = P.x, pz = P.z; for (const g of CHUNKS) { const c = g.userData.c; g.visible = Math.abs(c.x - px) < 150 && Math.abs(c.z - pz) < 150; } }; root.userData.chunkStep(); }
   [[-14, -26, 9, 0x6fae5a], [0, -30, 11, 0x5e9e50], [15, -27, 8, 0x6fae5a], [-26, -20, 7, 0x5e9e50], [27, -18, 7, 0x6fae5a]].forEach(([x, z, r, c]) => mk(root, sph, mat(c), [x, 0, z], [r * 1.3, r * 0.7, r]));
   // vegetable beds: raised timber frames
   const mergeBoxes = list => { const pos = [], nor = [], idx = []; let base = 0; for (const [x, y, z, w, h, d] of list) { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); const P = g.attributes.position.array, N = g.attributes.normal.array; for (let i = 0; i < P.length; i++) { pos.push(P[i]); nor.push(N[i]); } for (const k of g.index.array) idx.push(k + base); base += P.length / 3; g.dispose(); } const m = new THREE.BufferGeometry(); m.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); m.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); m.setIndex(idx); return m; };
@@ -913,8 +945,12 @@ function build3d() {
   const D = S.deco;
   const tree = (x, z, s = 1) => { const hh = hash(x + ',' + z), gs = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35]; mk(root, cyl, mat(0x5a4030, { roughness: 1 }), [x, 0.9 * s, z], [0.17 * s, 1.8 * s, 0.17 * s]); [[0, 2.3, 0, 1.15], [0.55, 1.9, 0.25, 0.8], [-0.5, 2.0, -0.2, 0.85], [0.1, 2.95, 0.1, 0.7], [-0.2, 1.8, 0.5, 0.7]].forEach(([dx, dy, dz, r], i) => mk(root, sph, mat(gs[(hh + i) % 4], { roughness: 1 }), [x + dx * s, dy * s, z + dz * s], [r * s, r * 0.88 * s, r * s])); };
   [[-10.2, 5], [11.4, 2.2], [-12.2, -7.5], [12.2, -8.4], [11.6, 10.2], [-3.6, -12.4]].forEach(([x, z], i) => { tree(x, z, 1 + (i % 3) * 0.12); COL.push({ t: 'c', x, z, r: 0.4 }); });
-  // a ring of trees marks the edge of the bigger farm
-  for (let k = 0; k < 120; k++) { const t = k / 120, x = t < 0.28 ? BOUND.x0 + 0.5 : t < 0.56 ? BOUND.x1 - 0.5 : BOUND.x0 + 3 + (BOUND.x1 - BOUND.x0 - 6) * ((t - 0.56) / 0.44), z = t < 0.56 ? BOUND.z0 + 2 + (BOUND.z1 - BOUND.z0 - 3) * ((t % 0.28) / 0.28) : (k % 2 ? BOUND.z1 - 0.5 : BOUND.z0 + 0.4); if (!free(x, z) || nearRoad(x, z, 2.6)) continue; tree(x, z, 1 + (k % 3) * 0.15); COL.push({ t: 'c', x, z, r: 0.4 }); }
+  // a ring of trees marks the edge of the world (instanced: one tree about every 6 m)
+  { const pts = [], per = 6; for (let x = BOUND.x0 + 0.5; x <= BOUND.x1 - 0.5; x += per) { pts.push([x, BOUND.z0 + 0.4]); pts.push([x, BOUND.z1 - 0.5]); } for (let z = BOUND.z0 + 6; z <= BOUND.z1 - 6; z += per) { pts.push([BOUND.x0 + 0.5, z]); pts.push([BOUND.x1 - 0.5, z]); }
+    const use = pts.filter(([x, z]) => !(x > -110 && x < 110 && z < 215) || !nearRoad(x, z, 2.6)), dm2 = new THREE.Object3D(), gs2 = [0x3d7a3a, 0x4a8a41, 0x56984b, 0x3a6f35];
+    const tk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.17, 0.22, 1.8, 6), new THREE.MeshStandardMaterial({ color: 0x5a4030, roughness: 1 }), use.length), cw = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), use.length * 2);
+    use.forEach(([x, z], k) => { const sc = 1 + (k % 3) * 0.15; dm2.position.set(x, 0.9 * sc, z); dm2.scale.set(sc, sc, sc); dm2.rotation.set(0, 0, 0); dm2.updateMatrix(); tk.setMatrixAt(k, dm2.matrix); let j = k * 2; for (const [ox, oy, oz, r] of [[0, 2.5, 0, 1.25], [0.55, 2.0, 0.25, 0.85]]) { dm2.position.set(x + ox * sc, oy * sc, z + oz * sc); dm2.scale.setScalar(r * sc); dm2.updateMatrix(); cw.setMatrixAt(j, dm2.matrix); cw.setColorAt(j, lin(gs2[(k + j) % 4])); j++; } });
+    tk.frustumCulled = false; cw.frustumCulled = false; tk.castShadow = false; cw.castShadow = false; root.add(tk); root.add(cw); }
   if (D.tree) { mk(root, cyl, mat(0x6d4c41), [-12.2, 0.8, 7.6], [0.2, 1.6, 0.2]); mk(root, sph, mat(0x4f9a4a), [-12.2, 2.1, 7.6], 1.1); for (let i = 0; i < 5; i++) mk(root, sph, mat(0xe0443a), [-12.2 + Math.cos(i * 1.3) * 0.9, 2 + (i % 2) * 0.4, 7.6 + Math.sin(i * 1.3) * 0.9], 0.14); COL.push({ t: 'c', x: -12.2, z: 7.6, r: 0.4 }); }
   if (D.flower) for (let i = 0; i < 12; i++) { const x = 8.6 + (i % 4) * 0.5, z = 6 + Math.floor(i / 4) * 0.5; mk(root, cyl, mat(0x4f9a4a), [x, 0.15, z], [0.02, 0.3, 0.02]); mk(root, sph, mat([0xf08aa0, 0xffcf3f, 0xf5f5f0, 0x8e44ad][i % 4]), [x, 0.35, z], 0.12); }
   if (D.gazebo) { const g = new THREE.Group(); g.position.set(-10, 0, 6.8); root.add(g); for (const x of [-1, 1]) for (const z of [-1, 1]) mk(g, cyl, mat(0xf5f5f0), [x, 1, z], [0.08, 2, 0.08]); mk(g, cone, mat(0xb8322a), [0, 2.5, 0], [1.9, 1, 1.9], [0, Math.PI / 4, 0]); mk(g, cyl, mat(0xb08968), [0, 0.06, 0], [1.4, 0.1, 1.4]); }
@@ -945,6 +981,7 @@ function syncPlots() {
   });
 }
 function anim(dt) {
+  if (root && root.userData.chunkStep && (anim.ck = (anim.ck || 0) + dt) > 0.4) { anim.ck = 0; root.userData.chunkStep(); }
   const t = performance.now() / 1000;
   if (NIGHT.moon && NIGHT.moon.visible) { NIGHT.moon.lookAt(camera.position); }
   const bg = root && root.userData.barn; if (bg) { const tr = used() <= 0 ? 0 : Math.min(4, Math.ceil(used() / cap() * 4)); if (tr !== bg.userData.tier) fillBarn(bg, tr); }
@@ -996,7 +1033,7 @@ let sunL, hemiL, skyU;
 function resize() { const w = $('app').clientWidth, h = $('app').clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
 function init3d() {
   const cv = $('c'); renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, powerPreference: 'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
-  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.82;   // lower than before: 1.2 washed the colours out (V.1 renders at 1.0 with a stronger sun)
+  renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.9; cv.style.filter = 'saturate(1.06) contrast(1.03)';   // lower than before: 1.2 washed the colours out (V.1 renders at 1.0 with a stronger sun)
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xbfdcf0, 40, 105);
   camera = new THREE.PerspectiveCamera(55, 0.5, 0.5, 260);
@@ -1150,13 +1187,15 @@ function showTitle() { if (S) save(); S = null; slot = 0; $('title').hidden = fa
 let loopOn = false, lastT = 0, acc = 0, saveT = 0;
 // A save from ANY earlier version (or one played a long way, or damaged) is brought up to date here, so it always opens in the latest version:
 // missing fields get defaults, numbers are repaired, things that no longer exist are dropped, and the counts that changed meaning are converted.
+// v31: the pen is 3 times bigger; a bed standing where the pen now is moves to the nearest free spot
+function fixPenOverlap() { const n = penDims(S.u.pen); S.plots.forEach((p, i) => { const q = plotPos(i); if (q.x > n.x0 - 1.9 && q.x < n.x1 + 1.9 && q.z > n.z0 - 1.9 && q.z < n.z1 + 1.9) { p.x = 9999; p.z = 9999; const d = nextSlot(); if (d) { p.x = d.x; p.z = d.z; } else { delete p.x; delete p.z; } delete p.un; } }); }
 function sanitize(S, raw) {
   const num = (v, d, a = -Infinity, b = Infinity) => (typeof v === 'number' && isFinite(v) ? Math.min(b, Math.max(a, v)) : d);
   const F = fresh(S.name);
   if ((raw.pv || 0) < 2) { S.pv = 2; S.u = Object.assign({}, S.u); S.u.plot = Math.max(0, PLOTS.findIndex(x => x >= (Array.isArray(S.plots) ? S.plots.length : 0))); if (S.u.plot < 0) S.u.plot = PLOTS.length - 1; }   // old saves counted plots 6/8/12/16: keep the beds you had
   S.name = typeof S.name === 'string' && S.name ? S.name.slice(0, 14) : 'ชาวไร่';
   for (const k of ['money', 'xp', 't', 'dayT', 'bank']) S[k] = num(S[k], F[k], 0);
-  S.lvl = Math.min(300, Math.floor(num(S.lvl, 1, 1))); S.dayN = Math.floor(num(S.dayN, 1, 1)); S.bankDay = Math.floor(num(S.bankDay, S.dayN, 1)); S.en = num(S.en, 100, 0, 100);
+  S.lvl = Math.min(MAXLV, Math.floor(num(S.lvl, 1, 1))); S.dayN = Math.floor(num(S.dayN, 1, 1)); S.bankDay = Math.floor(num(S.bankDay, S.dayN, 1)); S.en = num(S.en, 100, 0, 100);
   for (const k of ['feed', 'feed2', 'fert']) S[k] = Math.floor(num(S[k], k === 'feed' ? F.feed : 0, 0));
   if (!TM[S.tm]) S.tm = 'normal'; if (S.dayT >= dayLen()) S.dayT = 0;
   S.u = Object.assign({}, F.u, S.u && typeof S.u === 'object' ? S.u : {}); for (const u of UPS) S.u[u.k] = Math.floor(num(S.u[u.k], 0, 0, u.max));
@@ -1184,6 +1223,7 @@ async function startGame(n, name) {
   if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = []; if (!S.home) S.home = {}; if (S.en == null) S.en = 100;
   if (data && data.dayN == null) { S.dayN = Math.floor(S.t / DAY) + 1; S.dayT = (S.t % DAY) / DAY * dayLen(); }      // older saves: keep the day number and the time of day
   if (data) sanitize(S, data);
+  try { fixPenOverlap(); } catch (e) { }
   while (S.plots.length < PLOTS[S.u.plot]) S.plots.push({ c: null, p: 0, w: S.u.sprinkler ? 1 : 0, f: 0 });
   // offline progress: the farm kept growing while the game was closed (max 12 hours)
   const off = Math.min(12 * 3600, Math.max(0, (Date.now() - S.last) / 1000)); if (data && off > 5) { const before = readyCount(); update.nd = 1; update(off); update.nd = 0; if (readyCount() > before) setTimeout(() => toast(`ระหว่างที่ไม่อยู่ มีผลผลิตพร้อมเก็บ ${readyCount()} อย่าง`), 900); }

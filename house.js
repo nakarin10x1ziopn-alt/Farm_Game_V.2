@@ -1,9 +1,9 @@
 // house.js (v29): walk INTO the house, like the V.1 farm. A furnished room with a bed, kitchen and fridge, dining table, wardrobe, TV, clock and a window; the things you buy for the
 // house (soft bed, storage cabinet, coffee corner, flowers) appear inside as well as outside. Nothing here is saved: the room is rebuilt from S.home every time, and a save made indoors
 // stores the spot in front of the door, so old and new saves, other browsers and other devices all behave the same.
-const HOUSE2 = { on: false, cx: 300, cz: 300, ex: -7.4, ez: 12.3, g: null, boxes: [], wins: [], light: null, saved: null, fr: -1 };
+const HOUSE2 = { on: false, cx: 1500, cz: 1500, ex: -7.4, ez: 12.3, g: null, boxes: [], wins: [], light: null, saved: null, fr: -1 };
 const House2 = (() => {
-  const OX = 300, OZ = 300, RX = 3.8, RZ = 2.8, WALL = 1.3, DOORZ = 0.5;       // the room is 7.6 x 5.6 m, its door is in the east wall
+  const OX = 1500, OZ = 1500, RX = 3.8, RZ = 2.8, WALL = 1.3, DOORZ = 0.5;       // the room is 7.6 x 5.6 m, its door is in the east wall
   const W = (x, z) => [OX + x, OZ + z];
   function clear() {
     if (HOUSE2.g) { scene.remove(HOUSE2.g); HOUSE2.g.traverse(o => { if (o.isMesh && o.geometry && o.geometry !== box && o.geometry !== sph && o.geometry !== cyl) o.geometry.dispose(); }); HOUSE2.g = null; }
