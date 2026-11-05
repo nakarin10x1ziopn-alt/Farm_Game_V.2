@@ -129,6 +129,15 @@ body.placing #joy { display: none !important; }
   .btn { cursor: pointer; } .btn:not([disabled]):hover { filter: brightness(1.08); } #nav button:hover { background: rgba(255,255,255,0.08); }
   #c { cursor: grab; } #c:active { cursor: grabbing; }
 }
+/* v30: while a bed is being placed the controls shrink to one thin strip at the top, so the spot being chosen stays in view (the round action button gets small too) */
+body.placing #plcbar { left: 50%; right: auto; transform: translateX(-50%); width: min(430px, calc(100% - 20px)); top: calc(92px + env(safe-area-inset-top)); bottom: auto; padding: 5px 8px; display: flex; align-items: center; gap: 8px; border-radius: 12px; opacity: .94; }
+body.placing #plcbar #plctxt { flex: 1; min-width: 0; margin: 0; font-size: 11.5px; line-height: 1.3; }
+body.placing #plcbar .row { flex: none; flex-wrap: nowrap; gap: 6px; margin: 0; }
+body.placing #plcbar .btn { flex: none; padding: 6px 10px; font-size: 12.5px; border-radius: 10px; }
+body.placing #seedchip, body.placing #harvest { display: none !important; }
+#plcbar[hidden] { display: none !important; }
+body.placing #act { width: 52px; height: 52px; font-size: 24px; } body.placing #actlbl { font-size: 10.5px; max-width: 150px; padding: 2px 8px; }
+@media (min-width: 768px) and (min-height: 600px) { body.placing #plcbar { top: calc(112px + env(safe-area-inset-top)); } }
 @media (min-width: 1600px) and (min-height: 800px) and (hover: hover) and (pointer: fine) {
   #sheet .box { width: min(680px, 40vw); } #hud { width: min(460px, 26vw); } .card h4 { font-size: 17.5px; } .card p { font-size: 14.5px; }
 }
