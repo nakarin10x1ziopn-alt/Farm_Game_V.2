@@ -35,6 +35,8 @@ button { cursor: pointer; }
 .t.out { opacity: 0; transition: opacity .4s; }
 @keyframes tin { from { transform: translateY(-8px); opacity: 0; } }
 #seedchip { position: absolute; left: 10px; top: calc(86px + env(safe-area-inset-top)); z-index: 5; padding: 6px 12px; font-size: 13.5px; border: 1px solid var(--line); }
+#homebtn { position: absolute; right: 10px; top: calc(132px + env(safe-area-inset-top)); z-index: 5; width: 38px; height: 38px; padding: 0; border-radius: 50%; font-size: 19px; line-height: 1; display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); color: var(--ink); opacity: .92; cursor: pointer; }
+#homebtn[hidden], body.placing #homebtn { display: none !important; }
 #harvest { position: absolute; right: 10px; top: calc(86px + env(safe-area-inset-top)); z-index: 5; padding: 7px 14px; font-size: 13.5px; font-weight: 600; background: linear-gradient(180deg, #ffd95c, #f5a623); color: #3a2a05; border: 0; border-radius: 22px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
 #nav { position: absolute; left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 6; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px; }
 #nav button { background: transparent; border: 0; border-radius: 12px; padding: 6px 0 4px; font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--ink-dim); position: relative; }
@@ -95,6 +97,7 @@ body.placing #joy { display: none !important; }
   #hud { right: auto; left: 18px; width: min(440px, 46vw); top: calc(14px + env(safe-area-inset-top)); padding: 10px 14px; }
   #money { font-size: 26px; } .meta, #lv { font-size: 14px; }
   #seedchip { left: 18px; top: calc(104px + env(safe-area-inset-top)); font-size: 15px; padding: 8px 14px; }
+  #homebtn { right: 18px; top: calc(66px + env(safe-area-inset-top)); width: 44px; height: 44px; font-size: 22px; }
   #harvest { right: 18px; top: calc(14px + env(safe-area-inset-top)); font-size: 15px; padding: 9px 18px; }
   #toast { top: calc(14px + env(safe-area-inset-top)); width: min(560px, 60%); font-size: 15px; }
   #nav { left: 50%; right: auto; transform: translateX(-50%); width: min(660px, calc(100% - 24px)); bottom: calc(14px + env(safe-area-inset-bottom)); }
@@ -150,6 +153,7 @@ body.placing #act { width: 52px; height: 52px; font-size: 24px; } body.placing #
   <div id="toast"></div>
   <button id="seedchip" class="panel" data-a="tab" data-v="farm"></button>
   <button id="harvest" hidden></button>
+  <button id="homebtn" class="panel" data-a="gohome" aria-label="กลับบ้าน" title="กลับบ้าน (กด B)" hidden>🏠</button>
   <div id="joy"><i id="knob"></i></div>
   <div id="actwrap"><div id="actlbl" hidden></div><button id="act" class="idle">✋</button></div>
   <div id="kbhint" class="panel">⌨️ <b>W</b><b>A</b><b>S</b><b>D</b> หรือ <b>ลูกศร</b> เดิน · <b>E</b> หรือ <b>Space</b> ทำสิ่งที่แสดงบนปุ่ม · <b>Q</b><b>R</b> หมุนกล้อง · <b>ล้อเมาส์</b> หรือ <b>+</b><b>−</b> ซูม · ลากเมาส์หมุนกล้อง<br><b>1</b> แปลง <b>2</b> สัตว์ <b>3</b> บ่อปลา <b>4</b> ตลาด <b>5</b> เมนู · <b>H</b> เก็บทั้งหมด · <b>Esc</b> ปิดหน้าต่าง</div>
@@ -172,11 +176,12 @@ body.placing #act { width: 52px; height: 52px; font-size: 24px; } body.placing #
   </div>
 </div>
 <div id="rot">📱 กรุณาหมุนมือถือเป็นแนวตั้ง<br>เกมนี้เล่นบนมือถือแนวตั้ง (iPad เล่นได้ทั้งแนวตั้งและแนวนอน)</div>
-<script src="config.js?v=26"></script>
+<script src="config.js?v=32"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="crops_more.js?v=27"></script>
-<script src="more2.js?v=31"></script>
-<script src="game.js?v=31"></script>
-<script src="house.js?v=31"></script>
+<script src="crops_more.js?v=32"></script>
+<script src="more2.js?v=32"></script>
+<script src="game.js?v=32"></script>
+<script src="house.js?v=32"></script>
+<script src="home2.js?v=32"></script>
 </body>
 </html>
