@@ -173,16 +173,24 @@ async function readSlot(n) {
 let pushing = false, pushAgain = false;
 // v35 cloud save (GitHub Pages -> the Vercel save API): at most one upload every 20 seconds (the free storage has a monthly limit) plus one when the page is hidden or closed; a failed upload is retried
 let lastPush = 0, pushTimer = 0, pushErr = false, leaving = false;
+// v36: the farm is saved in the browser every 3 seconds; this decides when the server copy is sent. A fingerprint of everything the player did (money, bank, items, beds, animals, ... but not the
+// ticking growth timers or the walking position) says whether something really changed; if so it is sent at most every 15 s (the free storage allows only a few thousand writes a month), and always when the
+// page is hidden or closed. An unchanged farm is refreshed every 5 minutes so the server copy never looks stale.
+const fpNow = () => { if (!S) return ''; try { return JSON.stringify([Math.round(S.money), Math.round(S.bank), S.xp | 0, S.lvl, S.dayN, S.sel, S.name, S.tm, S.inv, S.seeds, S.feed, S.feed2, S.fert, S.u, S.deco, S.home, S.job && S.job.id, S.stats && S.stats.earned, S.plots.map(p => [p.c, p.w, p.f, p.x, p.z]), S.pen.map(a => [a.a, a.st]), S.pond.map(f => f.f), S.bk && S.bk.length]); } catch (e) { return String(Date.now()); } };
+let lastFp = '';
 function queuePush(force) {
-  if (!online) return; if (pushTimer && !force) return; clearTimeout(pushTimer);
-  const wait = force || !API ? 0 : Math.max(pushErr ? 15000 : 0, 20000 - (Date.now() - lastPush));
+  if (!online || !S || !slot) return;
+  const f = fpNow(), stale = Date.now() - lastPush > 300000;
+  if (f === lastFp && !stale && !(force && pushErr)) return;       // nothing the player did since the last upload
+  if (pushTimer && !force) return; clearTimeout(pushTimer);
+  const wait = force || !API ? 0 : Math.max(pushErr ? 15000 : 0, 15000 - (Date.now() - lastPush));
   pushTimer = setTimeout(() => { pushTimer = 0; if (S && slot) pushServer(); }, wait);
 }
 async function pushServer() {
   if (!S || !slot) return;
   if (pushing) { pushAgain = true; return; } pushing = true;
-  lastPush = Date.now(); let failed = false;
-  try { await api('/api/save', { method: 'POST', keepalive: !!leaving, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(slot), save: S }) }); online = true; pushErr = false; } catch (e) { failed = true; pushErr = true; if (!API) online = false; }
+  lastPush = Date.now(); let failed = false; const sentFp = fpNow();
+  try { await api('/api/save', { method: 'POST', keepalive: !!leaving, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(slot), save: S }) }); online = true; pushErr = false; lastFp = sentFp; } catch (e) { failed = true; pushErr = true; if (!API) online = false; }
   pushing = false; setSrv(); if (failed && API && online) queuePush(false); if (pushAgain) { pushAgain = false; if (S && slot) pushServer(); }   // the id and save are read again here, so a slot switch never writes to the wrong slot
 }
 // v33: two tabs (or an old tab left open) used to overwrite each other: the one that saved last won, and the farm of the other one - money included - was gone. A tab now refuses to write over a copy that
@@ -587,7 +595,7 @@ function render() {
       <div class="row">${[1000, 10000].map(v => `<button class="btn ghost" data-a="dep" data-v="${v}" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝาก ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="dep" data-v="all" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝากทั้งหมด</button></div>
       <div class="row">${[1000, 10000, 100000].map(v => `<button class="btn ghost" data-a="wd" data-v="${v}" ${S.bank >= 1 ? '' : 'disabled'}>ถอน ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="wd" data-v="all" ${S.bank >= 1 ? '' : 'disabled'}>ถอนสูงสุด ${fmt(Math.min(WD_MAX, Math.floor(S.bank)))}</button></div>
       ${Array.isArray(S.bk) && S.bk.length ? `<p style="margin:6px 2px 2px;font-size:12px;color:var(--ink-dim)">รายการล่าสุด: ${S.bk.slice(0, 6).map(x => `วันที่ ${x.d} ${x.t} ${x.a > 0 ? '+' : ''}${fmt(x.a)} → ${fmt(x.b)}`).join(' · ')}</p>` : ''}
-      <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติ (ราว 20 วินาทีครั้ง และตอนปิดหน้า)' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
+      <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="pullnow">🔄 ดึงเซฟล่าสุดจากเซิร์ฟเวอร์</button><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติ (ราว 20 วินาทีครั้ง และตอนปิดหน้า)' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
     },
     work() {
       $('stitle').textContent = '🏭 โรงงานแปรรูป';
@@ -665,6 +673,7 @@ Object.assign(A, {
   title: () => { save(); closeSheet(); showTitle(); },
   play: d => startGame(+d.v), del: d => { if (confirm(`ลบเซฟช่อง ${d.v}? ลบแล้วกู้คืนไม่ได้`)) { wipeSlot(+d.v); if (online) api('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(+d.v), save: null }) }).catch(() => { }); renderTitle(); } },
   newgame: d => { const nm = (($('nm' + d.v) || {}).value || '').trim().slice(0, 14) || 'ชาวไร่'; startGame(+d.v, nm); },
+  pullnow: () => { pullCheck(true); },
   copycode: async d => { const n = +d.v || slot, data = S && slot === n ? S : await readSlot(n); if (!data) return; const t = encodeSave(data); try { await navigator.clipboard.writeText(t); toast('📋 คัดลอกรหัสเซฟแล้ว เก็บไว้ที่ไลน์/โน้ต ใช้นำเข้าเมื่อไหร่ก็ได้'); } catch (e) { prompt('คัดลอกรหัสเซฟนี้เก็บไว้ (กดค้างแล้วเลือกคัดลอก)', t); } },
   importcode: d => { const t = prompt('วางรหัสเซฟที่คัดลอกไว้ (ขึ้นต้นด้วย FARM2:)'); if (!t) return; const j = decodeSave(t); if (!j) { alert('รหัสเซฟไม่ถูกต้อง'); return; } writeSlot(+d.v, j); renderTitle(); },
   code: () => { const c = prompt('รหัสผู้เล่นของคุณ (จดไว้ใช้ย้ายเครื่อง) ใส่รหัสจากเครื่องเก่าเพื่อโหลดเซฟเดิม:', DEV); if (c && /^[A-Za-z0-9_-]{4,40}$/.test(c) && c !== DEV) { DEV = c; try { localStorage.setItem('raisukjai2-dev', c); } catch (e) { } renderTitle(); } },
@@ -1284,9 +1293,28 @@ addEventListener('pagehide', () => { if (S) { save(); leaving = true; queuePush(
 showTitle();
 window.Farm2 = { get S() { return S; }, update, build3d, openTab, plant, price, P, CAM, startGame, get online() { return online; } };
 
+// ---------------- v36: the server copy can be pulled at any time ----------------
+// Checks the cloud copy of the open slot (a read, cheap). A copy newer than what this tab last wrote comes from another browser / device: the player decides to load it now (nothing is lost, this tab's farm is
+// saved first as the local backup) or to keep playing here (then this tab's farm replaces the server copy).
+let pulling = false;
+async function pullCheck(manual) {
+  if (!online || !S || !slot || pulling || saveBlocked) return; pulling = true;
+  try {
+    const j = await api(`/api/save?id=${sid(slot)}`), b = j && j.save && j.save.v === 1 ? j.save : null;
+    if (!b || !(b.last > lastWrote + 1000)) { if (manual) toast('☁️ เซฟในเครื่องนี้ตรงกับเซิร์ฟเวอร์แล้ว (ไม่มีเซฟที่ใหม่กว่า)'); return; }
+    const when = new Date(b.last).toLocaleString('th-TH');
+    if (confirm(`พบเซฟบนเซิร์ฟเวอร์ที่ใหม่กว่า (บันทึกจากเครื่องอื่น เมื่อ ${when})\nเงิน ${fmt(b.money)} ฿ · เงินฝาก ${fmt(b.bank || 0)} ฿ · เลเวล ${b.lvl}\nกดตกลง = โหลดเซฟล่าสุดจากเซิร์ฟเวอร์ (เซฟของแท็บนี้เก็บสำรองไว้ในเครื่อง)\nกดยกเลิก = เล่นต่อที่นี่ (เซฟของแท็บนี้จะไปแทนที่ในเซิร์ฟเวอร์)`)) {
+      try { localStorage.setItem(LKEY(slot) + '.bak', JSON.stringify(S)); } catch (e) { }
+      writeSlot(slot, b); saveBlocked = true; location.reload();
+    }
+  } catch (e) { if (manual) toast('ติดต่อเซิร์ฟเวอร์ไม่ได้ ลองใหม่อีกครั้ง'); } finally { pulling = false; }
+}
+setInterval(() => { if (!document.hidden) pullCheck(false); }, 120000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(() => pullCheck(false), 1500); });
+
 // ---------------- v33: a running game picks up a new version by itself ----------------
 // version.json holds the number of the newest release (the same number is in the ?v= of the script tags). When it is higher than BUILD the farm is saved and the page reloads on a fresh address, so an update never waits for a browser cache.
-const BUILD = 35;
+const BUILD = 36;
 async function checkUpdate() {
   try {
     if (saveBlocked) return;
