@@ -142,7 +142,7 @@ const dayLen = () => (TM[S && S.tm] || TM.normal).len;
 // ---------------- state ----------------
 const API = (window.FARM2_API || '').replace(/\/$/, '');
 let S = null, slot = 0, online = false;
-let DEV = (() => { try { let d = localStorage.getItem('raisukjai2-dev'); if (!d) { d = 'p' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('raisukjai2-dev', d); } return d; } catch (e) { return 'p' + Math.random().toString(36).slice(2, 12); } })();
+let DEV = (() => { try { let d = localStorage.getItem('raisukjai2-dev'); if (!d) { d = 'p' + Array.from(crypto.getRandomValues(new Uint8Array(20)), v => 'abcdefghjkmnpqrstuvwxyz23456789'[v % 31]).join(''); localStorage.setItem('raisukjai2-dev', d); } return d; } catch (e) { return 'p' + Math.random().toString(36).slice(2, 12); } })();
 const fresh = name => ({ v: 1, name: name || 'ชาวไร่', money: 300, xp: 0, lvl: 1, t: 0, last: Date.now(), tip: 0, sel: 'carrot', px: 0, pz: 10.5, plots: Array.from({ length: PLOTS[0] }, () => ({ c: null, p: 0, w: 0, f: 0 })),
   pen: [{ a: 'chicken', st: 'idle', t: 0 }], pond: [], inv: {}, feed: 6, feed2: 0, fert: 0, seeds: {}, autoFert: 1, led: null, hist: [], pv: 3, u: { plot: 0, pen: 0, pond: 0, barn: 0, sprinkler: 0, feeder: 0, work: 0, truck: 0 }, bank: 0, bankDay: 1, dayN: 1, dayT: 0, tm: 'normal', en: 100, home: {}, deco: {}, job: null, stats: { earned: 0 } });
 // A save lives in the browser twice (localStorage + IndexedDB) so one being wiped does not lose the farm. The key no longer depends on the
@@ -163,7 +163,7 @@ try { if (navigator.storage && navigator.storage.persist) navigator.storage.pers
 const encodeSave = d => 'FARM2:' + btoa(unescape(encodeURIComponent(JSON.stringify(d))));
 const decodeSave = t => { try { const j = JSON.parse(decodeURIComponent(escape(atob(String(t).trim().replace(/^FARM2:/, ''))))); return j && j.v === 1 && Array.isArray(j.plots) ? j : null; } catch (e) { return null; } };
 async function api(path, opt) { const r = await fetch(API + path, Object.assign({ cache: 'no-store' }, opt)); if (!r.ok) throw new Error(r.status); return r.json(); }
-async function ping() { try { const j = await Promise.race([api('/api/ping'), new Promise((_, rej) => setTimeout(() => rej(new Error('t')), 2500))]); online = !!(j && j.ok); } catch (e) { online = false; } return online; }
+async function ping() { try { const j = await Promise.race([api('/api/ping'), new Promise((_, rej) => setTimeout(() => rej(new Error('t')), API ? 8000 : 2500))]); online = !!(j && j.ok); } catch (e) { online = false; } return online; }
 // a slot is the newest of the browser copies and the server copy
 async function readSlot(n) {
   const a = await readLocal(n); let b = null;
@@ -171,11 +171,19 @@ async function readSlot(n) {
   return newer(a, b);
 }
 let pushing = false, pushAgain = false;
+// v35 cloud save (GitHub Pages -> the Vercel save API): at most one upload every 20 seconds (the free storage has a monthly limit) plus one when the page is hidden or closed; a failed upload is retried
+let lastPush = 0, pushTimer = 0, pushErr = false, leaving = false;
+function queuePush(force) {
+  if (!online) return; if (pushTimer && !force) return; clearTimeout(pushTimer);
+  const wait = force || !API ? 0 : Math.max(pushErr ? 15000 : 0, 20000 - (Date.now() - lastPush));
+  pushTimer = setTimeout(() => { pushTimer = 0; if (S && slot) pushServer(); }, wait);
+}
 async function pushServer() {
   if (!S || !slot) return;
   if (pushing) { pushAgain = true; return; } pushing = true;
-  try { await api('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(slot), save: S }) }); online = true; } catch (e) { online = false; }
-  pushing = false; setSrv(); if (pushAgain) { pushAgain = false; if (S && slot) pushServer(); }   // the id and save are read again here, so a slot switch never writes to the wrong slot
+  lastPush = Date.now(); let failed = false;
+  try { await api('/api/save', { method: 'POST', keepalive: !!leaving, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(slot), save: S }) }); online = true; pushErr = false; } catch (e) { failed = true; pushErr = true; if (!API) online = false; }
+  pushing = false; setSrv(); if (failed && API && online) queuePush(false); if (pushAgain) { pushAgain = false; if (S && slot) pushServer(); }   // the id and save are read again here, so a slot switch never writes to the wrong slot
 }
 // v33: two tabs (or an old tab left open) used to overwrite each other: the one that saved last won, and the farm of the other one - money included - was gone. A tab now refuses to write over a copy that
 // another tab saved after this tab loaded / saved: saving stops, the player is told, and a reload brings the newest farm back.
@@ -184,7 +192,7 @@ function conflictWarn() {
   if (saveBlocked) return; saveBlocked = true;
   setTimeout(() => { try { if (confirm('เซฟช่องนี้ถูกบันทึกจากหน้าต่าง/แท็บอื่นที่ใหม่กว่าแล้ว\nกดตกลง = โหลดข้อมูลล่าสุด (แนะนำ ไม่มีเงินหาย)\nกดยกเลิก = เล่นต่อโดยไม่บันทึกในแท็บนี้ (ความคืบหน้าช่วงนี้จะไม่ถูกเก็บ)')) location.reload(); else toast('⚠️ แท็บนี้ไม่บันทึก เพื่อกันทับเซฟที่ใหม่กว่า ปิดแท็บนี้หรือรีเฟรช'); } catch (e) { } }, 50);
 }
-function save() { if (!S || !slot) return; { const prev = lsGet(LKEY(slot)); if (saveBlocked || (prev && lastWrote && prev.last > lastWrote + 1)) { conflictWarn(); return; } } S.last = Date.now(); S.px = HOUSE2.on ? HOUSE2.ex : P.x; S.pz = HOUSE2.on ? HOUSE2.ez : P.z; storageOK = writeSlot(slot, S) || storageOK; lastWrote = S.last; if (online) pushServer(); }
+function save() { if (!S || !slot) return; { const prev = lsGet(LKEY(slot)); if (saveBlocked || (prev && lastWrote && prev.last > lastWrote + 1)) { conflictWarn(); return; } } S.last = Date.now(); S.px = HOUSE2.on ? HOUSE2.ex : P.x; S.pz = HOUSE2.on ? HOUSE2.ez : P.z; storageOK = writeSlot(slot, S) || storageOK; lastWrote = S.last; if (online) queuePush(false); }
 let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { saveQ = 0; save(); }, 500); };
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
 const day = () => S.dayN;
@@ -579,7 +587,7 @@ function render() {
       <div class="row">${[1000, 10000].map(v => `<button class="btn ghost" data-a="dep" data-v="${v}" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝาก ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="dep" data-v="all" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝากทั้งหมด</button></div>
       <div class="row">${[1000, 10000, 100000].map(v => `<button class="btn ghost" data-a="wd" data-v="${v}" ${S.bank >= 1 ? '' : 'disabled'}>ถอน ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="wd" data-v="all" ${S.bank >= 1 ? '' : 'disabled'}>ถอนสูงสุด ${fmt(Math.min(WD_MAX, Math.floor(S.bank)))}</button></div>
       ${Array.isArray(S.bk) && S.bk.length ? `<p style="margin:6px 2px 2px;font-size:12px;color:var(--ink-dim)">รายการล่าสุด: ${S.bk.slice(0, 6).map(x => `วันที่ ${x.d} ${x.t} ${x.a > 0 ? '+' : ''}${fmt(x.a)} → ${fmt(x.b)}`).join(' · ')}</p>` : ''}
-      <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติทุก 5 วินาที' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
+      <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติ (ราว 20 วินาทีครั้ง และตอนปิดหน้า)' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
     },
     work() {
       $('stitle').textContent = '🏭 โรงงานแปรรูป';
@@ -1271,14 +1279,14 @@ function loop(now) {
   }
   requestAnimationFrame(loop);
 }
-document.addEventListener('visibilitychange', () => { if (!S) return; if (document.hidden) save(); else { const off = Math.min(12 * 3600, (Date.now() - S.last) / 1000); if (off > 3) { update.nd = 1; update(off); update.nd = 0; } lastT = performance.now(); } });
-addEventListener('pagehide', () => { if (S) save(); }); addEventListener('beforeunload', () => { if (S) save(); });
+document.addEventListener('visibilitychange', () => { if (!S) return; if (document.hidden) { save(); leaving = true; queuePush(true); setTimeout(() => { leaving = false; }, 3000); } else { const off = Math.min(12 * 3600, (Date.now() - S.last) / 1000); if (off > 3) { update.nd = 1; update(off); update.nd = 0; } lastT = performance.now(); } });
+addEventListener('pagehide', () => { if (S) { save(); leaving = true; queuePush(true); } }); addEventListener('beforeunload', () => { if (S) { save(); leaving = true; queuePush(true); } });
 showTitle();
 window.Farm2 = { get S() { return S; }, update, build3d, openTab, plant, price, P, CAM, startGame, get online() { return online; } };
 
 // ---------------- v33: a running game picks up a new version by itself ----------------
 // version.json holds the number of the newest release (the same number is in the ?v= of the script tags). When it is higher than BUILD the farm is saved and the page reloads on a fresh address, so an update never waits for a browser cache.
-const BUILD = 34;
+const BUILD = 35;
 async function checkUpdate() {
   try {
     if (saveBlocked) return;
