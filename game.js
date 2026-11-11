@@ -177,7 +177,14 @@ async function pushServer() {
   try { await api('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: sid(slot), save: S }) }); online = true; } catch (e) { online = false; }
   pushing = false; setSrv(); if (pushAgain) { pushAgain = false; if (S && slot) pushServer(); }   // the id and save are read again here, so a slot switch never writes to the wrong slot
 }
-function save() { if (!S || !slot) return; S.last = Date.now(); S.px = HOUSE2.on ? HOUSE2.ex : P.x; S.pz = HOUSE2.on ? HOUSE2.ez : P.z; storageOK = writeSlot(slot, S) || storageOK; if (online) pushServer(); }
+// v33: two tabs (or an old tab left open) used to overwrite each other: the one that saved last won, and the farm of the other one - money included - was gone. A tab now refuses to write over a copy that
+// another tab saved after this tab loaded / saved: saving stops, the player is told, and a reload brings the newest farm back.
+let lastWrote = 0, saveBlocked = false;
+function conflictWarn() {
+  if (saveBlocked) return; saveBlocked = true;
+  setTimeout(() => { try { if (confirm('เซฟช่องนี้ถูกบันทึกจากหน้าต่าง/แท็บอื่นที่ใหม่กว่าแล้ว\nกดตกลง = โหลดข้อมูลล่าสุด (แนะนำ ไม่มีเงินหาย)\nกดยกเลิก = เล่นต่อโดยไม่บันทึกในแท็บนี้ (ความคืบหน้าช่วงนี้จะไม่ถูกเก็บ)')) location.reload(); else toast('⚠️ แท็บนี้ไม่บันทึก เพื่อกันทับเซฟที่ใหม่กว่า ปิดแท็บนี้หรือรีเฟรช'); } catch (e) { } }, 50);
+}
+function save() { if (!S || !slot) return; { const prev = lsGet(LKEY(slot)); if (saveBlocked || (prev && lastWrote && prev.last > lastWrote + 1)) { conflictWarn(); return; } } S.last = Date.now(); S.px = HOUSE2.on ? HOUSE2.ex : P.x; S.pz = HOUSE2.on ? HOUSE2.ez : P.z; storageOK = writeSlot(slot, S) || storageOK; lastWrote = S.last; if (online) pushServer(); }
 let saveQ = 0; const queueSave = () => { if (!saveQ) saveQ = setTimeout(() => { saveQ = 0; save(); }, 500); };
 function setSrv() { const e = $('srv'); if (e) e.innerHTML = (online ? '☁️ <b class="ok">เชื่อมต่อเซิร์ฟเวอร์แล้ว</b> เซฟถูกสำรองบนเซิร์ฟเวอร์อัตโนมัติ' : '📴 <b class="off">ไม่พบเซิร์ฟเวอร์</b> เซฟเก็บในเครื่องนี้ (2 ที่ในเบราว์เซอร์)') + (storageOK ? '' : '<br>⚠️ <b class="off">เบราว์เซอร์นี้บันทึกข้อมูลไม่ได้</b> (โหมดส่วนตัวหรือเบราว์เซอร์ในแอป) เปิดลิงก์ด้วย Chrome/Safari ปกติ หรือใช้ปุ่ม "คัดลอกรหัสเซฟ" เก็บไว้'); }
 const day = () => S.dayN;
@@ -268,7 +275,8 @@ function update(dt) {
   for (const f of S.pond) if (f.f) f.p = Math.min(FISH[f.f].sec, f.p + dt);
   if (S.job) { S.job.t += dt; }
   // a new farm day: the bank pays 1 % interest
-  while (S.bankDay < day()) { S.bankDay++; S.bank = Math.min(200000, Math.round(S.bank * 1.01)); }
+  // (v33: it used to CUT a deposit above 200,000 down to 200,000 - the rest of the money simply vanished. Interest now only ever adds, up to the limit, and a balance above the limit is left alone)
+  { let paid = 0; while (S.bankDay < day()) { S.bankDay++; if (S.bank < BANK_CAP) { const add = Math.min(BANK_CAP - S.bank, Math.round(S.bank * 0.01)); if (add > 0) { S.bank += add; paid += add; } } } if (paid > 0) bankLog('ดอกเบี้ย', paid); }
 }
 const cropReady = p => p.c && p.p >= CROPS[p.c].sec;
 const fishReady = f => f.f && f.p >= FISH[f.f].sec;
@@ -327,8 +335,22 @@ function doSleep(kind) {
     ov.style.opacity = '0'; setTimeout(() => { ov.style.pointerEvents = 'none'; }, 950); hud();
   }, 1300);
 }
-function deposit(n) { n = Math.min(n, S.money); if (n <= 0) return; S.money -= n; S.bank += n; sfx(500); }
-function withdraw(n) { n = Math.min(n, S.bank); if (n <= 0) return; S.bank -= n; S.money += n; sfx(500); }
+// ---------------- the bank ----------------
+// Money goes in and out ONLY through these two functions (the farm owner tapping a button on an open farm) and through the daily interest. Nothing else - loading, syncing, offline time, another tab - touches the deposit.
+const BANK_CAP = 200000;
+function bankLog(t, a) { if (!S) return; if (!Array.isArray(S.bk)) S.bk = []; S.bk.unshift({ d: S.dayN, t, a: Math.round(a), b: Math.round(S.bank) }); if (S.bk.length > 40) S.bk.length = 40; }
+function deposit(n) {
+  if (!S || !slot) return; n = Math.floor(+n); if (!(n >= 1)) return;
+  const room = Math.max(0, BANK_CAP - S.bank), put = Math.min(n, Math.floor(S.money), Math.floor(room));
+  if (put < 1) { toast(room < 1 ? `ธนาคารรับฝากเต็ม ${fmt(BANK_CAP)} ฿ แล้ว` : 'เงินสดไม่พอ'); return; }
+  S.money -= put; S.bank += put; bankLog('ฝาก', put); sfx(500);
+  if (put < n && put < Math.floor(S.money + put)) toast(`ฝากได้ ${fmt(put)} ฿ (ธนาคารรับฝากได้ไม่เกิน ${fmt(BANK_CAP)} ฿ ส่วนที่เหลืออยู่ในกระเป๋า)`);
+}
+function withdraw(n) {
+  if (!S || !slot) return; n = Math.floor(+n); if (!(n >= 1)) return;
+  n = Math.min(n, Math.floor(S.bank)); if (n < 1) return;
+  S.bank -= n; S.money += n; bankLog('ถอน', -n); sfx(500);
+}
 
 // ---------------- vegetable beds: buy up to 40, place them anywhere ----------------
 const OLDPOS = j => ({ x: LAY.plotX[j % 4], z: j < 16 ? LAY.plotZ - Math.floor(j / 4) * LAY.plotDz : 17 + Math.floor((j - 16) / 4) * LAY.plotDz });
@@ -552,8 +574,10 @@ function render() {
       const decos = DECOS.map(d => `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>ตกแต่งฟาร์ม · ชื่อเสียง +0.3% ราคาขาย${d.id === 'fountain' ? ' (+0.8%)' : ''}</p></div>${S.deco[d.id] ? '<span class="pill">✓ มีแล้ว</span>' : `<button class="btn" data-a="deco" data-v="${d.id}" ${S.money >= d.price ? '' : 'disabled'}>${fmt(d.price)} ฿</button>`}</div>`).join('');
       const tmc = `<div class="card"><div class="ci">🏠</div><div><h4>บ้านของคุณ</h4><p>พลังงาน ⚡ ${Math.round(S.en)} · นอนและพักผ่อนได้ที่นี่</p></div><button class="btn" data-a="tab" data-v="home">เปิด</button></div><h5>⏱️ ความเร็วเวลาในเกม</h5><div class="row">${Object.keys(TM).map(k => `<button class="btn${S.tm === k ? '' : ' ghost'}" data-a="tmode" data-v="${k}">${TM[k].n}<br><small>${TM[k].d}</small></button>`).join('')}</div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">เวลากลางคืนมีดวงจันทร์และดาว ลากกล้องลงต่ำ ๆ จะเห็นท้องฟ้า · ผักและสัตว์โตตามเวลาจริงเหมือนเดิม ความเร็วนี้เปลี่ยนแค่ความยาวของ 1 วัน (ราคา ดอกเบี้ย โปรประจำวัน)</p>`;
       return tmc + `<p style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">นอกจากซื้อเมล็ด สัตว์ ลูกปลา และอาหารสัตว์ เงินยังใช้ทำสิ่งเหล่านี้ได้</p><h5>อัปเกรดฟาร์ม</h5>${ups}<h5>🏦 ธนาคารสุขใจ (ดอกเบี้ย 1% ต่อวันของฟาร์ม)</h5>
-      <div class="card"><div class="ci">🏦</div><div><h4>เงินฝาก ${fmt(S.bank)} ฿</h4><p>ฝากได้ไม่เกิน 200,000 ฿ ถอนได้ทุกเมื่อ</p></div></div>
-      <div class="row"><button class="btn ghost" data-a="dep" data-v="1000" ${S.money >= 1 ? '' : 'disabled'}>ฝาก 1,000</button><button class="btn ghost" data-a="dep" data-v="all">ฝากทั้งหมด</button><button class="btn ghost" data-a="wd" data-v="all" ${S.bank ? '' : 'disabled'}>ถอนทั้งหมด</button></div>
+      <div class="card"><div class="ci">🏦</div><div><h4>เงินฝาก ${fmt(S.bank)} ฿</h4><p>ฝากได้ไม่เกิน ${fmt(BANK_CAP)} ฿ (ฝากได้อีก ${fmt(Math.max(0, BANK_CAP - S.bank))} ฿) ถอนได้ทุกเมื่อ · เงินฝากเข้า-ออกได้เฉพาะเจ้าของฟาร์มที่กดเอง</p></div></div>
+      <div class="row">${[1000, 10000].map(v => `<button class="btn ghost" data-a="dep" data-v="${v}" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝาก ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="dep" data-v="all" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝากทั้งหมด</button></div>
+      <div class="row">${[1000, 10000].map(v => `<button class="btn ghost" data-a="wd" data-v="${v}" ${S.bank >= 1 ? '' : 'disabled'}>ถอน ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="wd" data-v="all" ${S.bank >= 1 ? '' : 'disabled'}>ถอนทั้งหมด</button></div>
+      ${Array.isArray(S.bk) && S.bk.length ? `<p style="margin:6px 2px 2px;font-size:12px;color:var(--ink-dim)">รายการล่าสุด: ${S.bk.slice(0, 6).map(x => `วันที่ ${x.d} ${x.t} ${x.a > 0 ? '+' : ''}${fmt(x.a)} → ${fmt(x.b)}`).join(' · ')}</p>` : ''}
       <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติทุก 5 วินาที' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
     },
     work() {
@@ -1213,13 +1237,14 @@ function sanitize(S, raw) {
   for (const k of ['deco', 'home']) { const o = {}; for (const id in (S[k] && typeof S[k] === 'object' ? S[k] : {})) if (S[k][id]) o[id] = 1; S[k] = o; }
   if (S.job && !(RECIPES.some(r => r.id === S.job.id))) S.job = null; else if (S.job) S.job.t = num(S.job.t, 0, 0);
   if (!Array.isArray(S.hist)) S.hist = []; if (!S.led || typeof S.led !== 'object') S.led = null;
+  S.bk = (Array.isArray(S.bk) ? S.bk : []).filter(x => x && typeof x === 'object').slice(0, 40).map(x => ({ d: Math.floor(num(x.d, 1, 1)), t: String(x.t || '').slice(0, 8), a: num(x.a, 0, -1e12, 1e12), b: num(x.b, 0, 0) }));
   if (!S.stats || typeof S.stats !== 'object') S.stats = { earned: 0 }; S.stats.earned = num(S.stats.earned, 0, 0);
   { const n = penDims(S.u.pen); S.plots.forEach((p, i) => { if (typeof p.x === 'number' && p.x > n.x0 - 1.9 && p.x < n.x1 + 1.9 && p.z > n.z0 - 1.9 && p.z < n.z1 + 1.9) { delete p.x; delete p.z; } }); }   // a bed standing where the bigger pen now is goes back to its standard slot
   S.px = num(S.px, 0, BOUND.x0, BOUND.x1); S.pz = num(S.pz, 10.5, BOUND.z0, BOUND.z1); S.last = num(S.last, Date.now(), 0, Date.now());
 }
 async function startGame(n, name) {
   let data = typeof name === 'string' ? null : await readSlot(n);
-  S = Object.assign(fresh(typeof name === 'string' ? name : ''), data || {}); slot = n;
+  S = Object.assign(fresh(typeof name === 'string' ? name : ''), data || {}); slot = n; saveBlocked = false; lastWrote = data && typeof data.last === 'number' ? data.last : 0;
   if (!S.seeds) S.seeds = {}; if (!S.hist) S.hist = []; if (!S.home) S.home = {}; if (S.en == null) S.en = 100;
   if (data && data.dayN == null) { S.dayN = Math.floor(S.t / DAY) + 1; S.dayT = (S.t % DAY) / DAY * dayLen(); }      // older saves: keep the day number and the time of day
   if (data) sanitize(S, data);
@@ -1249,3 +1274,20 @@ document.addEventListener('visibilitychange', () => { if (!S) return; if (docume
 addEventListener('pagehide', () => { if (S) save(); }); addEventListener('beforeunload', () => { if (S) save(); });
 showTitle();
 window.Farm2 = { get S() { return S; }, update, build3d, openTab, plant, price, P, CAM, startGame, get online() { return online; } };
+
+// ---------------- v33: a running game picks up a new version by itself ----------------
+// version.json holds the number of the newest release (the same number is in the ?v= of the script tags). When it is higher than BUILD the farm is saved and the page reloads on a fresh address, so an update never waits for a browser cache.
+const BUILD = 33;
+async function checkUpdate() {
+  try {
+    if (saveBlocked) return;
+    const j = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then(r => r.json());
+    if (!j || typeof j.v !== 'number' || j.v <= BUILD) return;
+    let seen = 0; try { seen = +sessionStorage.getItem('raisukjai2-upd') || 0; } catch (e) { }
+    if (seen >= j.v) return;   // this tab already tried to load that version: never loop
+    try { sessionStorage.setItem('raisukjai2-upd', String(j.v)); } catch (e) { }
+    if (S && slot) { save(); toast('🔄 มีเวอร์ชันใหม่ กำลังอัปเดต (เซฟไว้แล้ว)…'); }
+    setTimeout(() => { try { const u = new URL(location.href); u.searchParams.set('v', String(j.v)); location.replace(u.toString()); } catch (e) { location.reload(); } }, S ? 1800 : 100);
+  } catch (e) { }
+}
+setTimeout(checkUpdate, 3000); setInterval(checkUpdate, 90000); document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpdate(); });
