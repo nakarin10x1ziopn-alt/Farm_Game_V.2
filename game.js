@@ -337,7 +337,7 @@ function doSleep(kind) {
 }
 // ---------------- the bank ----------------
 // Money goes in and out ONLY through these two functions (the farm owner tapping a button on an open farm) and through the daily interest. Nothing else - loading, syncing, offline time, another tab - touches the deposit.
-const BANK_CAP = 200000;
+const BANK_CAP = 40000000, WD_MAX = 300000;   // the deposit holds up to 40,000,000 ฿; one withdrawal takes at most 300,000 ฿
 function bankLog(t, a) { if (!S) return; if (!Array.isArray(S.bk)) S.bk = []; S.bk.unshift({ d: S.dayN, t, a: Math.round(a), b: Math.round(S.bank) }); if (S.bk.length > 40) S.bk.length = 40; }
 function deposit(n) {
   if (!S || !slot) return; n = Math.floor(+n); if (!(n >= 1)) return;
@@ -348,8 +348,9 @@ function deposit(n) {
 }
 function withdraw(n) {
   if (!S || !slot) return; n = Math.floor(+n); if (!(n >= 1)) return;
-  n = Math.min(n, Math.floor(S.bank)); if (n < 1) return;
+  const want = n; n = Math.min(n, Math.floor(S.bank), WD_MAX); if (n < 1) return;
   S.bank -= n; S.money += n; bankLog('ถอน', -n); sfx(500);
+  if (want > n && n === WD_MAX) toast(`ถอนได้ครั้งละไม่เกิน ${fmt(WD_MAX)} ฿ (ถอนแล้ว ${fmt(n)} ฿ กดอีกครั้งเพื่อถอนต่อ)`);
 }
 
 // ---------------- vegetable beds: buy up to 40, place them anywhere ----------------
@@ -574,9 +575,9 @@ function render() {
       const decos = DECOS.map(d => `<div class="card"><div class="ci">${d.i}</div><div><h4>${d.n}</h4><p>ตกแต่งฟาร์ม · ชื่อเสียง +0.3% ราคาขาย${d.id === 'fountain' ? ' (+0.8%)' : ''}</p></div>${S.deco[d.id] ? '<span class="pill">✓ มีแล้ว</span>' : `<button class="btn" data-a="deco" data-v="${d.id}" ${S.money >= d.price ? '' : 'disabled'}>${fmt(d.price)} ฿</button>`}</div>`).join('');
       const tmc = `<div class="card"><div class="ci">🏠</div><div><h4>บ้านของคุณ</h4><p>พลังงาน ⚡ ${Math.round(S.en)} · นอนและพักผ่อนได้ที่นี่</p></div><button class="btn" data-a="tab" data-v="home">เปิด</button></div><h5>⏱️ ความเร็วเวลาในเกม</h5><div class="row">${Object.keys(TM).map(k => `<button class="btn${S.tm === k ? '' : ' ghost'}" data-a="tmode" data-v="${k}">${TM[k].n}<br><small>${TM[k].d}</small></button>`).join('')}</div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">เวลากลางคืนมีดวงจันทร์และดาว ลากกล้องลงต่ำ ๆ จะเห็นท้องฟ้า · ผักและสัตว์โตตามเวลาจริงเหมือนเดิม ความเร็วนี้เปลี่ยนแค่ความยาวของ 1 วัน (ราคา ดอกเบี้ย โปรประจำวัน)</p>`;
       return tmc + `<p style="margin:0 2px 6px;font-size:12.5px;color:var(--ink-dim)">นอกจากซื้อเมล็ด สัตว์ ลูกปลา และอาหารสัตว์ เงินยังใช้ทำสิ่งเหล่านี้ได้</p><h5>อัปเกรดฟาร์ม</h5>${ups}<h5>🏦 ธนาคารสุขใจ (ดอกเบี้ย 1% ต่อวันของฟาร์ม)</h5>
-      <div class="card"><div class="ci">🏦</div><div><h4>เงินฝาก ${fmt(S.bank)} ฿</h4><p>ฝากได้ไม่เกิน ${fmt(BANK_CAP)} ฿ (ฝากได้อีก ${fmt(Math.max(0, BANK_CAP - S.bank))} ฿) ถอนได้ทุกเมื่อ · เงินฝากเข้า-ออกได้เฉพาะเจ้าของฟาร์มที่กดเอง</p></div></div>
+      <div class="card"><div class="ci">🏦</div><div><h4>เงินฝาก ${fmt(S.bank)} ฿</h4><p>ฝากได้ไม่เกิน ${fmt(BANK_CAP)} ฿ (ฝากได้อีก ${fmt(Math.max(0, BANK_CAP - S.bank))} ฿) ถอนได้ครั้งละไม่เกิน ${fmt(WD_MAX)} ฿ · เงินฝากเข้า-ออกได้เฉพาะเจ้าของฟาร์มที่กดเอง</p></div></div>
       <div class="row">${[1000, 10000].map(v => `<button class="btn ghost" data-a="dep" data-v="${v}" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝาก ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="dep" data-v="all" ${S.money >= 1 && S.bank < BANK_CAP ? '' : 'disabled'}>ฝากทั้งหมด</button></div>
-      <div class="row">${[1000, 10000].map(v => `<button class="btn ghost" data-a="wd" data-v="${v}" ${S.bank >= 1 ? '' : 'disabled'}>ถอน ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="wd" data-v="all" ${S.bank >= 1 ? '' : 'disabled'}>ถอนทั้งหมด</button></div>
+      <div class="row">${[1000, 10000, 100000].map(v => `<button class="btn ghost" data-a="wd" data-v="${v}" ${S.bank >= 1 ? '' : 'disabled'}>ถอน ${fmt(v)}</button>`).join('')}<button class="btn ghost" data-a="wd" data-v="all" ${S.bank >= 1 ? '' : 'disabled'}>ถอนสูงสุด ${fmt(Math.min(WD_MAX, Math.floor(S.bank)))}</button></div>
       ${Array.isArray(S.bk) && S.bk.length ? `<p style="margin:6px 2px 2px;font-size:12px;color:var(--ink-dim)">รายการล่าสุด: ${S.bk.slice(0, 6).map(x => `วันที่ ${x.d} ${x.t} ${x.a > 0 ? '+' : ''}${fmt(x.a)} → ${fmt(x.b)}`).join(' · ')}</p>` : ''}
       <h5>ตกแต่งฟาร์ม</h5>${decos}<h5>เซฟ · ช่อง ${slot}</h5><div class="row"><button class="btn ghost" data-a="copycode" data-v="${slot}">📋 คัดลอกรหัสเซฟ (สำรองไว้)</button></div><p style="margin:0 2px 8px;font-size:12.5px;color:var(--ink-dim)">${online ? '☁️ เชื่อมต่อเซิร์ฟเวอร์ เซฟสำรองอัตโนมัติทุก 5 วินาที' : '📴 ไม่พบเซิร์ฟเวอร์ เซฟเก็บในเครื่องนี้'} · รหัสผู้เล่น: ${DEV}</p><div class="row"><button class="btn" data-a="savenow">💾 เซฟตอนนี้</button><button class="btn ghost" data-a="title">↩ เลือกช่องเซฟ</button></div>`;
     },
@@ -1277,7 +1278,7 @@ window.Farm2 = { get S() { return S; }, update, build3d, openTab, plant, price, 
 
 // ---------------- v33: a running game picks up a new version by itself ----------------
 // version.json holds the number of the newest release (the same number is in the ?v= of the script tags). When it is higher than BUILD the farm is saved and the page reloads on a fresh address, so an update never waits for a browser cache.
-const BUILD = 33;
+const BUILD = 34;
 async function checkUpdate() {
   try {
     if (saveBlocked) return;
